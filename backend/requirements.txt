@@ -1,0 +1,10 @@
+Flask
+Flask-RESTful
+Flask-CORS
+SQLAlchemy
+yfinance
+werkzeug
+PyJWT
+# Add any other dependencies you might need (e.g., for your LSTM model)
+# tensorflow
+# scikit-learn

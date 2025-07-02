@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "d3-time-format": "^4.1.0",
+    "date-fns": "^4.1.0",
+    "react-financial-charts": "^2.0.1",
+    "styled-components": "^6.1.18"
+  }
+}
