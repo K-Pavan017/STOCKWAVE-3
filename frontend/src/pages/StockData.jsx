@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react"; // Added useRef for consistency although not used directly for wishlist
 import axios from "axios";
 import { useLocation } from "react-router-dom";
 import {
@@ -25,8 +25,7 @@ import {
   XAxis as RechartsXAxis,
   YAxis as RechartsYAxis,
 } from "recharts";
-
-
+import { Heart } from "lucide-react"; // Added Heart icon import
 
 const DURATION_OPTIONS = [
   { label: "1 Month", value: 30 },
@@ -69,9 +68,50 @@ function StockData({ width = 1200, ratio = 1 }) {
   const [predicting, setPredicting] = useState(false);
   const [error, setError] = useState("");
   const [fetchingData, setFetchingData] = useState(false);
+  const [isLiked, setIsLiked] = useState(false); // New state for wishlist
 
+  // Helper to manage localStorage for watchlist (from previous interactions, included for completeness if user uses it elsewhere)
+  const addSearchedTickerToWatchlist = (tickerSymbol) => {
+    try {
+      let watchlist = JSON.parse(localStorage.getItem('userWatchlist')) || [];
+      if (!watchlist.includes(tickerSymbol)) {
+        watchlist = [tickerSymbol, ...watchlist.slice(0, 4)]; // Keep last 5 unique tickers
+        localStorage.setItem('userWatchlist', JSON.stringify(watchlist));
+      }
+    } catch (e) {
+      console.error("Failed to update watchlist in localStorage", e);
+    }
+  };
+
+  // Helper to manage localStorage for wishlist
+  const toggleWishlist = (tickerSymbol) => {
+    try {
+      let wishlist = JSON.parse(localStorage.getItem('userWishlist')) || [];
+      if (wishlist.includes(tickerSymbol)) {
+        wishlist = wishlist.filter(s => s !== tickerSymbol);
+        setIsLiked(false);
+      } else {
+        wishlist.push(tickerSymbol);
+        setIsLiked(true);
+      }
+      localStorage.setItem('userWishlist', JSON.stringify(wishlist));
+    } catch (e) {
+      console.error("Failed to update wishlist in localStorage", e);
+    }
+  };
+
+  useEffect(() => {
+    // Check if current symbol is in wishlist on load or when symbol changes
+    try {
+      const wishlist = JSON.parse(localStorage.getItem('userWishlist')) || [];
+      setIsLiked(wishlist.includes(symbol));
+    } catch (e) {
+      console.error("Failed to read wishlist from localStorage", e);
+      setIsLiked(false);
+    }
+  }, [symbol]); // Re-check when symbol changes
   
- // chartData and chartDataWithPrediction
+  // chartData and chartDataWithPrediction
   const chartData = records.map((r) => ({
     date: new Date(r.date), // Ensure date is a Date object
     open: r.open,
@@ -122,6 +162,7 @@ function StockData({ width = 1200, ratio = 1 }) {
 
           setRecords(processedRecords);
           setStatistics(res.data.data.statistics);
+          addSearchedTickerToWatchlist(symbol); // Add to watchlist on successful fetch
         } else {
           setRecords([]);
           setStatistics(null);
@@ -163,7 +204,8 @@ function StockData({ width = 1200, ratio = 1 }) {
       });
       if (res.data.success) {
         //window.location.reload();
-        fetchStockData(symbol);
+        // Changed fetchStockData to fetchData to match the actual function name in this file
+        fetchData();
         setPrediction(null);
       } else {
         setError(res.data.message || "Failed to fetch fresh data.");
@@ -200,11 +242,23 @@ function StockData({ width = 1200, ratio = 1 }) {
  
   // Calculate y-axis extents based on both historical and predicted data
   const allPrices = chartDataWithPrediction.flatMap(d => [d.open, d.high, d.low, d.close]).filter(p => p > 0);
-  const minPrice = Math.min(...allPrices);
-  const maxPrice = Math.max(...allPrices);
-  const priceRange = maxPrice - minPrice;
+  const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0; // Handle empty array
+  const maxPrice = allPrices.length > 0 ? Math.max(...allPrices) : 100; // Handle empty array
+  
+  let priceRange = maxPrice - minPrice;
+
+  // Add a small buffer if priceRange is zero to prevent chart crash on flat data
+  if (priceRange === 0 && allPrices.length > 0) {
+    // Use a percentage of the price for buffer if price is not zero, else a fixed small value
+    priceRange = minPrice * 0.1;
+    if (priceRange === 0) priceRange = 1; // Fallback to a fixed small buffer if minPrice is also zero
+  } else if (allPrices.length === 0) {
+    priceRange = 100; // Default range if no prices available at all
+  }
+
   const yAxisMin = Math.max(0, minPrice - priceRange * 0.1);
   const yAxisMax = maxPrice + priceRange * 0.1;
+
 
   // Use chartDataWithPrediction for the chart canvas to include predictions
   const xScaleProvider = discontinuousTimeScaleProvider.inputDateAccessor((d) => d.date);
@@ -324,6 +378,16 @@ function StockData({ width = 1200, ratio = 1 }) {
                 className="px-6 py-2 rounded-lg bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-medium shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
               >
                 📊 {chartType === "candlestick" ? "Line Chart" : "Candlestick"}
+              </button>
+              {/* Add to Wishlist Button */}
+              <button
+                type="button"
+                onClick={() => toggleWishlist(symbol)}
+                className={`px-6 py-2 rounded-lg text-white font-medium shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center
+                  ${isLiked ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+              >
+                <Heart size={18} className="mr-2" fill={isLiked ? "white" : "none"} stroke={isLiked ? "white" : "currentColor"} />
+                {isLiked ? "Remove from Wishlist" : "Add to Wishlist"}
               </button>
             </div>
           </form>

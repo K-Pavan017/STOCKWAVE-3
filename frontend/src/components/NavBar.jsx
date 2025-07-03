@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Profiler } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
@@ -125,7 +125,7 @@ export default function Navbar() {
               <NavLink
                 icon={<BarChart3 size={18} />}
                 text="Dashboard"
-                to="/dashboard"
+                to="/stock"
                 darkMode={darkMode}
               />
               <NavLink
@@ -141,9 +141,9 @@ export default function Navbar() {
                 darkMode={darkMode}
               />
               <NavLink
-                icon={<MoreHorizontal size={18} />}
-                text="More"
-                to="/more"
+                icon={<User size={18} />}
+                text="Portfolio"
+                to="/dashboard"
                 darkMode={darkMode}
               />
             </div>
