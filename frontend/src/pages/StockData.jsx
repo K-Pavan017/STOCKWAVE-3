@@ -45,7 +45,7 @@ const PREDICT_OPTIONS = [
 function formatDate(date) {
   if (!date) return "";
   if (typeof date === "string" || typeof date === "number") date = new Date(date);
-  return format(date, "MMM dd, yyyy");
+  return format(date, "MMM dd,yyyy");
 }
 
 function formatShortDate(date) {
@@ -56,10 +56,10 @@ function formatShortDate(date) {
 
 function StockData({ width = 1200, ratio = 1 }) {
   const location = useLocation();
-  const initialSymbol = location.state?.symbol || "AAPL";
+  const initialSymbol = location.state?.symbol || "GOOGL";
   const [symbol, setSymbol] = useState(initialSymbol);
   const [search, setSearch] = useState(initialSymbol);
-  const [duration, setDuration] = useState(90);
+  const [duration, setDuration] = useState(365);
   const [records, setRecords] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [prediction, setPrediction] = useState(null);
@@ -149,13 +149,22 @@ function StockData({ width = 1200, ratio = 1 }) {
   const handleFetchData = async () => {
     setFetchingData(true);
     setError("");
+    let stockMarket = 'US'; // Default to US market
+    if (symbol.toUpperCase().endsWith('.NS')) {
+      stockMarket = 'IN'; // If it ends with .NS, it's Indian
+    } else if (symbol.toUpperCase() === 'SBIN') { // Example for SBIN, as it's Indian but might not have .NS entered
+      stockMarket = 'IN';
+    }
     try {
       const res = await axios.post("http://127.0.0.1:5000/stock/fetch", {
         symbol: symbol,
-        months: Math.ceil(duration / 30),
+        months: 24,
+        market: stockMarket,
       });
       if (res.data.success) {
-        window.location.reload();
+        //window.location.reload();
+        fetchStockData(symbol);
+        setPrediction(null);
       } else {
         setError(res.data.message || "Failed to fetch fresh data.");
       }
@@ -200,6 +209,23 @@ function StockData({ width = 1200, ratio = 1 }) {
   // Use chartDataWithPrediction for the chart canvas to include predictions
   const xScaleProvider = discontinuousTimeScaleProvider.inputDateAccessor((d) => d.date);
   const { data, xScale, xAccessor, displayXAccessor } = xScaleProvider(chartDataWithPrediction);
+    const getMonthlyTickValues = (data) => {
+    const tickValues = [];
+    let currentMonth = -1;
+    let currentYear = -1;
+
+    data.forEach((d) => {
+      const date = d.date;
+      if (date.getMonth() !== currentMonth || date.getFullYear() !== currentYear) {
+        tickValues.push(date);
+        currentMonth = date.getMonth();
+        currentYear = date.getFullYear();
+      }
+    });
+    return tickValues;
+  };
+
+  const monthlyTickValues = getMonthlyTickValues(data); 
 
 
   return (
@@ -277,7 +303,7 @@ function StockData({ width = 1200, ratio = 1 }) {
                   disabled={fetchingData}
                   className="px-4 py-3 rounded-xl bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                 >
-                  {fetchingData ? "⟳" : "↻"}
+                  {fetchingData ? "refresh" : "refreshing"}
                 </button>
               </div>
             </div>
@@ -467,7 +493,8 @@ function StockData({ width = 1200, ratio = 1 }) {
                         axisAt="bottom"
                         orient="bottom"
                         tickFormat={formatShortDate}
-                        ticks={8}
+                        //ticks={8}
+                        tickValues={monthlyTickValues}
                         stroke="#9CA3AF"
                         tickStroke="#9CA3AF"
                         fontSize={11}
