@@ -10,16 +10,21 @@ export default function Hero() {
   const [symbol, setSymbol] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [tickerData, setTickerData] = useState([
-    { symbol: "AAPL", price: "$175.23", change: "+2.3%", trending: "up" },
-    { symbol: "GOOG", price: "$2,512.44", change: "-0.8%", trending: "down" },
-    { symbol: "TSLA", price: "$846.90", change: "+4.2%", trending: "up" },
-    { symbol: "AMZN", price: "$3,245.11", change: "-1.2%", trending: "down" },
-    { symbol: "MSFT", price: "$336.75", change: "+1.8%", trending: "up" },
-    { symbol: "META", price: "$325.18", change: "+3.1%", trending: "up" },
-    { symbol: "NVDA", price: "$781.50", change: "+5.6%", trending: "up" },
-    { symbol: "JPM", price: "$190.42", change: "-0.4%", trending: "down" }
-  ]);
+  
+  // Initialize with empty array, will be populated by API call
+  const [tickerData, setTickerData] = useState([]); 
+  
+  // State for the dashboard preview stock data
+  const [dashboardPreviewStock, setDashboardPreviewStock] = useState({
+    symbol: "TSLA",
+    price: "$0.00",
+    change: "+0.0%",
+    trending: "up",
+    open: "$0.00",
+    volume: "0M",
+    high: "$0.00",
+    aiPrediction: "HOLD" // Default
+  });
 
   // Simulate loading state for dashboard preview animation
   useEffect(() => {
@@ -34,6 +39,7 @@ export default function Hero() {
   useEffect(() => {
     const interval = setInterval(() => {
       setTickerData(prevData => {
+        if (prevData.length === 0) return prevData; // Do nothing if data is not loaded yet
         const newData = [...prevData];
         const firstItem = newData.shift();
         if (firstItem) newData.push(firstItem);
@@ -44,9 +50,60 @@ export default function Hero() {
     return () => clearInterval(interval);
   }, []);
 
-  // const handleSearch = () => {
-  //   console.log("Search for:", symbol);
-  // };
+  // Fetch real-time data for ticker and dashboard preview
+  useEffect(() => {
+    const fetchRealTimeData = async () => {
+      const symbolsToFetch = ["AAPL", "GOOG", "TSLA", "AMZN", "MSFT", "META", "NVDA", "JPM"];
+      const fetchedTickerData = [];
+      
+      for (const s of symbolsToFetch) {
+        try {
+          const response = await axios.get(`http://127.0.0.1:5000/api/stock_info/${s}`);
+          if (response.data.success) {
+            const data = response.data.data;
+            const price = data.current_price ? `$${data.current_price.toFixed(2)}` : 'N/A';
+            const changePercent = data.day_change_percent !== null ? `${data.day_change_percent >= 0 ? '+' : ''}${data.day_change_percent.toFixed(2)}%` : 'N/A';
+            const trending = data.day_change_percent >= 0 ? "up" : "down";
+            
+            fetchedTickerData.push({
+              symbol: data.symbol,
+              price: price,
+              change: changePercent,
+              trending: trending,
+            });
+
+            // If it's TSLA, also update the dashboard preview
+            if (s === "TSLA") {
+              // Fetch statistics for open, volume, high as well
+              const statsResponse = await axios.get(`http://127.0.0.1:5000/api/stock_statistics/${s}`);
+              if (statsResponse.data.success) {
+                const stats = statsResponse.data.data;
+                setDashboardPreviewStock({
+                  symbol: data.symbol,
+                  price: price,
+                  change: changePercent,
+                  trending: trending,
+                  open: stats.price_stats?.opening ? `$${stats.price_stats.opening.toFixed(2)}` : 'N/A',
+                  volume: stats.volume_stats?.total ? `${(stats.volume_stats.total / 1000000).toFixed(1)}M` : 'N/A',
+                  high: stats.price_stats?.highest ? `$${stats.price_stats.highest.toFixed(2)}` : 'N/A',
+                  aiPrediction: "↗ BUY" // This could also come from an API if available
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching data for ${s}:`, error);
+        }
+      }
+      setTickerData(fetchedTickerData);
+    };
+
+    fetchRealTimeData();
+    // Refresh data every 5 minutes (adjust as needed)
+    const intervalId = setInterval(fetchRealTimeData, 5 * 60 * 1000); 
+
+    return () => clearInterval(intervalId); // Clear interval on unmount
+  }, []);
 
 
 const handleSearch = async () => {
@@ -364,7 +421,7 @@ const handleKeyDown = (e) => {
                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               </div>
               <div className="text-xs text-gray-400">StockWave Premium Dashboard</div>
-              <div className="text-xs text-gray-500">TSLA • Advanced Analytics</div>
+              <div className="text-xs text-gray-500">{dashboardPreviewStock.symbol} • Advanced Analytics</div>
             </div>
             
             {/* Dashboard Content */}
@@ -372,11 +429,18 @@ const handleKeyDown = (e) => {
               {/* Chart UI */}
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <h3 className="text-xl font-bold">TSLA</h3>
+                  <h3 className="text-xl font-bold">{dashboardPreviewStock.symbol}</h3>
                   <div className="flex items-center">
-                    <span className="text-xl font-semibold mr-2">$846.90</span>
-                    <span className="text-emerald-400 flex items-center text-sm font-medium">
-                      +4.2% <TrendingUp size={16} className="ml-1" />
+                    <span className="text-xl font-semibold mr-2">{dashboardPreviewStock.price}</span>
+                    <span className={`flex items-center text-sm font-medium ${
+                      dashboardPreviewStock.trending === "up" ? "text-emerald-400" : "text-rose-400"
+                    }`}>
+                      {dashboardPreviewStock.change} 
+                      {dashboardPreviewStock.trending === "up" ? (
+                        <TrendingUp size={16} className="ml-1" />
+                      ) : (
+                        <TrendingDown size={16} className="ml-1" />
+                      )}
                     </span>
                   </div>
                 </div>
@@ -473,10 +537,10 @@ const handleKeyDown = (e) => {
                   variants={stagger}
                 >
                   {[
-                    { label: "Open", value: "$823.40" },
-                    { label: "Volume", value: "12.4M" },
-                    { label: "High", value: "$851.20" },
-                    { label: "AI Prediction", value: "↗ BUY", highlight: true }
+                    { label: "Open", value: dashboardPreviewStock.open },
+                    { label: "Volume", value: dashboardPreviewStock.volume },
+                    { label: "High", value: dashboardPreviewStock.high },
+                    { label: "AI Prediction", value: dashboardPreviewStock.aiPrediction, highlight: true }
                   ].map((stat, index) => (
                     <motion.div 
                       key={index} 

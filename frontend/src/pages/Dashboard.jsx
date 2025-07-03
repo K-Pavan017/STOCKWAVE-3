@@ -18,6 +18,7 @@ import {
   Plus
 } from "lucide-react";
 import { motion } from "framer-motion";
+import axios from "axios"; // Import axios for API calls
 
 import NavBar from "../components/NavBar";
 import Footer from "../components/Footer";
@@ -49,17 +50,16 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [notifications, setNotifications] = useState(3);
-  const [watchlist, setWatchlist] = useState([
-    { symbol: "AAPL", name: "Apple Inc.", price: "$175.23", change: "+2.3%", trending: "up", prediction: "BUY", score: 89 },
-    { symbol: "MSFT", name: "Microsoft Corp.", price: "$336.75", change: "+1.8%", trending: "up", prediction: "HOLD", score: 74 },
-    { symbol: "NVDA", name: "NVIDIA Corp.", price: "$781.50", change: "+5.6%", trending: "up", prediction: "STRONG BUY", score: 96 },
-    { symbol: "GOOG", name: "Alphabet Inc.", price: "$2,512.44", change: "-0.8%", trending: "down", prediction: "HOLD", score: 68 },
-    { symbol: "TSLA", name: "Tesla Inc.", price: "$846.90", change: "+4.2%", trending: "up", prediction: "BUY", score: 85 }
-  ]);
   
+  // Initial placeholder for watchlist, will be populated by API calls
+  const [watchlist, setWatchlist] = useState([]); 
+  
+  // Default symbols to fetch for the watchlist
+  const defaultWatchlistSymbols = ["AAPL", "NVDA", "GOOG", "AMZN", "META", "JPM"];
+
   const [portfolioData, setPortfolioData] = useState({
-    totalValue: "$284,531.20",
-    dayChange: "+$5,892.44 (2.1%)",
+    totalValue: "$284,531.20", // This would typically come from a user's actual holdings value
+    dayChange: "+$0.00 (0.0%)", // Will be updated dynamically based on watchlist sum
     trending: "up",
     allocation: [
       { category: "Technology", percentage: 42, color: "#3B82F6" },
@@ -69,7 +69,7 @@ export default function Dashboard() {
       { category: "Energy", percentage: 8, color: "#EC4899" },
       { category: "Other", percentage: 5, color: "#6B7280" }
     ],
-    performance: [
+    performance: [ // These would ideally come from historical portfolio data
       { date: "Jan", value: 240000 },
       { date: "Feb", value: 232000 },
       { date: "Mar", value: 245000 },
@@ -80,7 +80,7 @@ export default function Dashboard() {
     ]
   });
   
-  // Market insights data
+  // Market insights data (remains hardcoded as backend not providing this directly)
   const [marketInsights, setMarketInsights] = useState([
     { 
       title: "Tech Sector Outperformance", 
@@ -102,7 +102,7 @@ export default function Dashboard() {
     }
   ]);
   
-  // AI predictions data
+  // AI predictions data (remains hardcoded as backend not providing this directly)
   const [aiPredictions, setAiPredictions] = useState([
     { symbol: "AAPL", confidence: 89, direction: "up", timeframe: "1 month", reasoning: "Strong product cycle and services growth" },
     { symbol: "JPM", confidence: 76, direction: "up", timeframe: "3 months", reasoning: "Favorable interest rate environment" },
@@ -110,7 +110,7 @@ export default function Dashboard() {
     { symbol: "AMZN", confidence: 91, direction: "up", timeframe: "3 months", reasoning: "AWS growth acceleration and retail margin expansion" }
   ]);
   
-  // Chart data
+  // Chart data (remains hardcoded for SVG path simplicity)
   const [chartData, setChartData] = useState({
     points: "M0,80 C30,75 60,68 100,60 S150,40 200,30 S300,20 350,30 L400,28",
     area: "M0,80 C30,75 60,68 100,60 S150,40 200,30 S300,20 350,30 L400,28 V100 H0 Z",
@@ -121,15 +121,96 @@ export default function Dashboard() {
     ]
   });
   
-  // Simulate loading state
+  // Fetch real-time data for watchlist and update portfolio summary
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const fetchDashboardData = async () => {
+      let tempWatchlist = [];
+      let totalDayChangePercent = 0;
+      let totalDayChangeValue = 0;
+
+      for (const s of defaultWatchlistSymbols) {
+        try {
+          const infoResponse = await axios.get(`http://127.0.0.1:5000/api/stock_info/${s}`);
+          const statsResponse = await axios.get(`http://127.0.0.1:5000/api/stock_statistics/${s}`);
+
+          if (infoResponse.data.success && statsResponse.data.success) {
+            const info = infoResponse.data.data;
+            const stats = statsResponse.data.data;
+
+            const change = info.day_change;
+            const changePercent = info.day_change_percent;
+            const trending = change > 0 ? "up" : "down";
+            const price = info.current_price !== null ? `$${info.current_price.toFixed(2)}` : "N/A";
+            const score = stats.price_stats?.change_percent !== null ? Math.min(100, Math.max(0, 50 + Math.round(stats.price_stats.change_percent * 5))) : 'N/A'; // Simple dummy AI Score based on daily change
+            const prediction = score > 80 ? "STRONG BUY" : score > 60 ? "BUY" : score > 40 ? "HOLD" : "SELL"; // Dummy prediction based on score
+
+            tempWatchlist.push({
+              symbol: info.symbol,
+              name: info.shortName,
+              price: price,
+              change: changePercent !== null ? `${change > 0 ? "+" : ""}${changePercent.toFixed(2)}%` : "N/A",
+              trending: trending,
+              prediction: prediction,
+              score: score
+            });
+
+            if (changePercent !== null) {
+              totalDayChangePercent += changePercent;
+            }
+            if (change !== null) {
+              totalDayChangeValue += change;
+            }
+          } else {
+            console.warn(`Failed to fetch data for ${s}:`, infoResponse.data.message || statsResponse.data.message);
+             // Add placeholder for failed symbols
+            tempWatchlist.push({
+                symbol: s,
+                name: "N/A",
+                price: "N/A",
+                change: "N/A",
+                trending: "neutral",
+                prediction: "N/A",
+                score: "N/A"
+            });
+          }
+        } catch (error) {
+          console.error(`Error fetching data for ${s}:`, error);
+           // Add placeholder for failed symbols
+          tempWatchlist.push({
+              symbol: s,
+              name: "N/A",
+              price: "N/A",
+              change: "N/A",
+              trending: "neutral",
+              prediction: "N/A",
+              score: "N/A"
+          });
+        }
+      }
+
+      setWatchlist(tempWatchlist);
+
+      // Update portfolio data based on aggregated changes (simplified)
+      const avgDayChangePercent = defaultWatchlistSymbols.length > 0 ? totalDayChangePercent / defaultWatchlistSymbols.length : 0;
+      const formattedDayChangePercent = `${avgDayChangePercent > 0 ? "+" : ""}${avgDayChangePercent.toFixed(1)}%`;
+      const formattedDayChangeValue = `${totalDayChangeValue > 0 ? "+" : ""}$${totalDayChangeValue.toFixed(2)}`;
+
+      setPortfolioData(prev => ({
+        ...prev,
+        dayChange: `${formattedDayChangeValue} (${formattedDayChangePercent})`,
+        trending: avgDayChangePercent > 0 ? "up" : "down"
+      }));
+
       setIsLoaded(true);
-    }, 1200);
+    };
+
+    const timer = setTimeout(() => {
+        fetchDashboardData();
+    }, 1200); // Simulate initial loading then fetch data
     
     return () => clearTimeout(timer);
-  }, []);
-  
+  }, []); // Run once on component mount
+
   // Filter watchlist based on search query
   const filteredWatchlist = watchlist.filter(stock => 
     stock.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -689,5 +770,5 @@ export default function Dashboard() {
               </motion.div>
           </div>
       </section><Footer /></>
-                              );
-                            }
+  );
+}
