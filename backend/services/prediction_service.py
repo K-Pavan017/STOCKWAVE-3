@@ -135,7 +135,7 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
         return None, "Not enough data to create a test set for evaluation. Consider increasing lookback_days."
 
     model = build_model_improved((X_train.shape[1], X_train.shape[2]))
-    history = model.fit(X_train, y_train, epochs=50, batch_size=32, verbose=1, validation_split=0.1)
+    history = model.fit(X_train, y_train, epochs=100, batch_size=32, verbose=1, validation_split=0.1)
 
     test_loss = model.evaluate(X_test, y_test, verbose=0)
     print(f"Test Loss (MSE): {test_loss}")

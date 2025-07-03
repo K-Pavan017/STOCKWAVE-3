@@ -303,7 +303,7 @@ function StockData({ width = 1200, ratio = 1 }) {
                   disabled={fetchingData}
                   className="px-4 py-3 rounded-xl bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                 >
-                  {fetchingData ? "refresh" : "refreshing"}
+                  {fetchingData ? "refreshing" : "refresh"}
                 </button>
               </div>
             </div>
@@ -348,7 +348,7 @@ function StockData({ width = 1200, ratio = 1 }) {
                 {statistics?.price_stats && (
                   <div className="flex items-center space-x-4 text-lg">
                     <span className="text-2xl font-bold text-white">
-                      ${statistics.price_stats.current}
+                      ${statistics.price_stats.current.toFixed(2)}
                     </span>
                     <span className={`font-semibold ${
                       statistics.price_stats.change >= 0 ? 'text-green-400' : 'text-red-400'
@@ -375,15 +375,15 @@ function StockData({ width = 1200, ratio = 1 }) {
               {/* Price Statistics */}
               <div className="bg-gradient-to-br from-blue-600/20 to-blue-800/20 backdrop-blur-lg rounded-xl p-4 border border-blue-500/30">
                 <p className="text-blue-300 text-sm font-medium">Current</p>
-                <p className="text-white text-xl font-bold">${statistics.price_stats?.current}</p>
+                <p className="text-white text-xl font-bold">${statistics.price_stats?.current.toFixed(2)}</p>
               </div>
               <div className="bg-gradient-to-br from-green-600/20 to-green-800/20 backdrop-blur-lg rounded-xl p-4 border border-green-500/30">
                 <p className="text-green-300 text-sm font-medium">High</p>
-                <p className="text-white text-xl font-bold">${statistics.price_stats?.highest}</p>
+                <p className="text-white text-xl font-bold">${statistics.price_stats?.highest.toFixed(2)}</p>
               </div>
               <div className="bg-gradient-to-br from-red-600/20 to-red-800/20 backdrop-blur-lg rounded-xl p-4 border border-red-500/30">
                 <p className="text-red-300 text-sm font-medium">Low</p>
-                <p className="text-white text-xl font-bold">${statistics.price_stats?.lowest}</p>
+                <p className="text-white text-xl font-bold">${statistics.price_stats?.lowest.toFixed(2)}</p>
               </div>
               <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-lg rounded-xl p-4 border border-purple-500/30">
                 <p className="text-purple-300 text-sm font-medium">Average</p>
