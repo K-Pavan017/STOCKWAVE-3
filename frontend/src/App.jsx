@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import ContactUs from './pages/ContactUs';
-import AboutUs from './pages/AboutUs';
+import About from './pages/About';
 import Dashboard from './pages/Dashboard';
 
 import AppLoadingAnimation from './pages/AppLoadingAnimation';
@@ -22,7 +22,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/contact" element={<ContactUs />} />
-        <Route path="/about" element={<AboutUs />} />
+        <Route path="/about" element={<About />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/loading" element={<AppLoadingAnimation />} />
 

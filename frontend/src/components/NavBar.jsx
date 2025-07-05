@@ -130,7 +130,7 @@ export default function Navbar() {
               />
               <NavLink
                 icon={<Info size={18} />}
-                text="About Us"
+                text="About"
                 to="/about"
                 darkMode={darkMode}
               />

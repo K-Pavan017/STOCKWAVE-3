@@ -108,7 +108,7 @@ export default function Hero() {
 
 const handleSearch = async () => {
   const trimmedSymbol = symbol.trim().toUpperCase();
-  
+
   if (!trimmedSymbol) {
     alert("Please enter a stock ticker symbol.");
     return;
@@ -117,30 +117,36 @@ const handleSearch = async () => {
   try {
     // First, fetch and store the stock data
     console.log(`Fetching data for ${trimmedSymbol}...`);
-    
+
     const fetchRes = await axios.post('http://127.0.0.1:5000/stock/fetch', {
       symbol: trimmedSymbol,
-      months: 3
+      months: 18
     });
 
     if (fetchRes.data.success) {
       console.log(`Successfully fetched and stored data for ${trimmedSymbol}`);
-      
+
+      // Safely get statistics, or default to an empty object if not present
+      // This is the key change to prevent the TypeError
+      const fetchedStatistics = fetchRes.data.data && fetchRes.data.data.statistics
+        ? fetchRes.data.data.statistics
+        : {}; // Provide a default empty object if statistics is undefined
+
       // Then, get the stored data for display
       const getRes = await axios.get(`http://127.0.0.1:5000/stock/data/${trimmedSymbol}`, {
-        params: { 
-          limit: 90, // Get last 90 days of data
-          days: 90
+        params: {
+          limit: 365,
+          days: 365,
         }
       });
 
       if (getRes.data.success && getRes.data.data.records.length > 0) {
         // Navigate to stock page with the fetched data
         navigate("/stock", {
-          state: { 
+          state: {
             stockData: getRes.data.data,
             symbol: trimmedSymbol,
-            statistics: fetchRes.data.data.statistics // Include statistics from fetch response
+            statistics: fetchedStatistics // Use the safely accessed statistics
           }
         });
       } else {
@@ -151,13 +157,13 @@ const handleSearch = async () => {
     }
   } catch (err) {
     console.error("Error fetching stock data:", err);
-    
+
     // More specific error handling
     if (err.response) {
       // Server responded with error status
       const status = err.response.status;
       const message = err.response.data.message || "Unknown server error";
-      
+
       if (status === 404) {
         alert(`Stock symbol "${trimmedSymbol}" not found. Please check the symbol and try again.`);
       } else if (status === 400) {
@@ -276,7 +282,7 @@ const handleKeyDown = (e) => {
             variants={fadeIn}
             className="inline-block px-3 py-1 mb-6 text-sm font-semibold text-blue-300 bg-blue-900 bg-opacity-30 rounded-full border border-blue-800"
           >
-            #1 AI-Powered Stock Analysis Platform
+            Stock Analysis Platform
           </motion.div>
           
           <motion.h1 
@@ -307,17 +313,6 @@ const handleKeyDown = (e) => {
               <span className="flex items-center">
                 Get Started
                 <ChevronRight size={18} className="ml-1 transition-transform duration-300 group-hover:translate-x-1" />
-              </span>
-            </motion.button>
-            
-            <motion.button 
-              variants={fadeIn}
-              whileHover={{ scale: 1.03 }}
-              className="px-8 py-3 border-2 border-gray-700 hover:border-blue-400 text-gray-200 hover:text-white rounded-xl font-semibold transition-all duration-300 hover:bg-gray-800 hover:bg-opacity-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50"
-            >
-              <span className="flex items-center">
-                View Predictions
-                <LineChart size={18} className="ml-2" />
               </span>
             </motion.button>
           </motion.div>
@@ -381,21 +376,17 @@ const handleKeyDown = (e) => {
             <div className="flex items-center space-x-6">
               <div className="flex items-center">
                 <div className="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>
-                <span className="font-medium">92% prediction accuracy</span>
+                <span className="font-medium">75%+ prediction accuracy</span>
               </div>
               <div className="flex items-center">
-                <Users size={16} className="mr-2 text-blue-400" />
-                <span className="font-medium">Trusted by 10,000+ traders</span>
+                <Clock size={16} className="mr-2 text-amber-400" />
+                <span className="font-medium">1.5+ years of historical data</span>
               </div>
             </div>
             <div className="flex items-center space-x-6">
               <div className="flex items-center">
                 <BarChart size={16} className="mr-2 text-purple-400" />
                 <span className="font-medium">Powered by LSTM models</span>
-              </div>
-              <div className="flex items-center">
-                <Clock size={16} className="mr-2 text-amber-400" />
-                <span className="font-medium">10+ years of historical data</span>
               </div>
             </div>
           </motion.div>

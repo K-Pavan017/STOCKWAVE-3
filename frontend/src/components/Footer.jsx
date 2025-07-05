@@ -86,13 +86,13 @@ export default function Footer() {
                 placeholder="Your email"
                 className="w-full px-4 py-2 pr-14 text-sm text-gray-200 bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
               />
-              <motion.button
+              <a href="#"><motion.button
                 className="absolute right-2 top-1.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 p-2 rounded-lg"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
                 <ChevronRight size={16} />
-              </motion.button>
+              </motion.button></a>
             </div>
           </motion.div>
         </div>
@@ -160,17 +160,17 @@ export default function Footer() {
                 <div className="w-7 h-7 bg-blue-600/20 rounded-full flex items-center justify-center mr-3">
                   <Mail size={13} className="text-blue-400" />
                 </div>
-                <span>support@stockwave.com</span>
+                <span>pavanppvss.com</span>
               </li>
               <li className="flex items-center text-gray-400">
                 <div className="w-7 h-7 bg-blue-600/20 rounded-full flex items-center justify-center mr-3">
                   <Phone size={13} className="text-blue-400" />
                 </div>
-                <span>+1 (888) 123-4567</span>
+                <span>+91 7993242204</span>
               </li>
               <li>
                 <motion.a
-                  href="#"
+                  href="https://maps.app.goo.gl/WXYa3BoUPNi8k5QX8"
                   className="inline-flex items-center text-blue-400 hover:text-blue-300 font-medium mt-1"
                   whileHover={{ x: 5 }}
                 >

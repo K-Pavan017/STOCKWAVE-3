@@ -108,28 +108,11 @@ if (res.data.success) {
         style={{ backgroundImage: 'url("/stock.png")' }}
       />
 
-      {/* Bull and Bear waves */}
-      <motion.div 
-        className="absolute left-0 md:left-10 top-24 w-48 md:w-64"
-        initial={{ opacity: 0, x: -100 }}
-        animate={showElements.waves ? { opacity: 0.8, x: 0 } : {}}
-        transition={{ duration: 0.6 }}
-      >
-        <img src="/redwave.png" alt="Bear wave" className="w-full" />
-      </motion.div>
-      
-      <motion.div 
-        className="absolute right-0 md:right-10 top-24 w-48 md:w-64"
-        initial={{ opacity: 0, x: 100 }}
-        animate={showElements.waves ? { opacity: 0.8, x: 0 } : {}}
-        transition={{ duration: 0.6 }}
-      >
-        <img src="/greenwave.png" alt="Bull wave" className="w-full" />
-      </motion.div>
+    
       
       {/* Logo */}
       <motion.div 
-        className="absolute top-12 md:top-16 left-1/2 transform -translate-x-1/2"
+        className="absolute top-12 md:top-16 left 2 transform -translate-x-1/2"
         initial={{ opacity: 0, y: -30 }}
         animate={showElements.logo ? { opacity: 1, y: 0 } : {}}
         transition={{ duration: 0.8 }}

@@ -133,7 +133,7 @@ export default function HowItWorks() {
           className="mt-16"
         >
           <a 
-            href="#" 
+            href="/stock" 
             className="inline-flex items-center bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 rounded-xl font-semibold shadow-lg shadow-blue-900/20 hover:shadow-blue-900/40 transition-all duration-300 transform hover:-translate-y-1 group"
           >
             <span>See how it works</span>

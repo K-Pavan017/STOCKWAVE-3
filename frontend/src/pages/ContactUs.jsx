@@ -76,20 +76,20 @@ export default function ContactUs() {
               {
                 icon: <Phone size={24} className="text-blue-400" />,
                 title: "Call Us",
-                info: "+1 (555) 123-4567",
-                description: "Available Mon-Fri, 9AM-5PM ET"
+                info: "+91 7993242204",
+                description: "Available 24/7"
               },
               {
                 icon: <Mail size={24} className="text-blue-400" />,
                 title: "Email Us",
-                info: "support@stockai.tech",
+                info: "pavanppvss@gmail.com",
                 description: "We'll respond within 24 hours"
               },
               {
                 icon: <MapPin size={24} className="text-blue-400" />,
                 title: "Visit Us",
-                info: "123 Innovation Drive",
-                description: "Boston, MA 02110"
+                info: "JNTU,Hyderabad",
+                description: "Available Mon-Fri, 9AM-5PM"
               }
             ].map((option, index) => (
               <div key={index} className="bg-gray-800 rounded-xl border border-gray-700 shadow-md p-8 text-center transition-transform hover:scale-105">
@@ -120,7 +120,7 @@ export default function ContactUs() {
                         value={formData.name}
                         onChange={handleChange}
                         className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-white placeholder-gray-400"
-                        placeholder="John Doe"
+                        placeholder="ramu"
                         required />
                     </div>
 
@@ -180,13 +180,13 @@ export default function ContactUs() {
             <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-md p-8">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
               <h2 className="text-2xl font-bold text-white mb-6">Our Location</h2>
-              <div className="bg-gray-700 h-64 rounded-lg mb-6 flex items-center justify-center">
+              <a href="https://maps.app.goo.gl/WXYa3BoUPNi8k5QX8"><div className="bg-gray-700 h-64 rounded-lg mb-6 flex items-center justify-center">
                 <MapPin size={48} className="text-blue-400 opacity-50" />
-                <span className="text-gray-400 ml-2">Map placeholder</span>
-              </div>
+                <span className="text-gray-400 ml-2">Our location</span>
+              </div></a>
               <div className="text-gray-300">
-                <p className="mb-2"><strong>Address:</strong> 123 Innovation Drive, Boston, MA 02110</p>
-                <p className="mb-2"><strong>Hours:</strong> Monday-Friday, 9AM-5PM ET</p>
+                <p className="mb-2"><strong>Address:</strong> JNTU,Hyderabad</p>
+                <p className="mb-2"><strong>Hours:</strong> Monday-Friday, 9AM-5PM </p>
                 <p><strong>Parking:</strong> Available on premises</p>
               </div>
             </div>
@@ -237,29 +237,7 @@ export default function ContactUs() {
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="container mx-auto px-6 py-12 relative z-10">
-          <div className={`bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-12 text-center ${animationClasses("delay-1000")}`}>
-            <h2 className="text-3xl font-bold text-white mb-6">Ready to Experience the Future of Stock Prediction?</h2>
-            <p className="text-blue-100 mb-8 max-w-2xl mx-auto">
-              Join thousands of investors who are already using our AI-powered platform to make smarter investment decisions.
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <button className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl font-semibold transition-all duration-300 transform hover:translate-y-px hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 group">
-                <span className="flex items-center">
-                  Sign Up Now
-                  <ArrowRight size={18} className="ml-1 transition-transform duration-300 group-hover:translate-x-1" />
-                </span>
-              </button>
-              <button className="px-8 py-3 border-2 border-gray-600 hover:border-blue-400 text-gray-200 hover:text-white rounded-xl font-semibold transition-all duration-300 hover:bg-gray-800 hover:bg-opacity-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50">
-                <span className="flex items-center">
-                  Request a Demo
-                  <ArrowUpRight size={18} className="ml-2" />
-                </span>
-              </button>
-            </div>
-          </div>
-        </section>
+        
       </div>
       <Footer />
       

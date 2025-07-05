@@ -182,20 +182,6 @@ export default function LearnAndNews() {
             ))}
           </div>
         </div>
-
-        {/* Call to Action */}
-        <div className="text-center">
-          <div className="inline-block relative group mt-8">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-            <a 
-              href="#newsletter" 
-              className="relative px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-full shadow-lg group-hover:shadow-blue-500/50 transition-all duration-300 flex items-center"
-            >
-              Get Daily Market Insights
-              <ChevronRight size={18} className="ml-2 transform group-hover:translate-x-1 transition-transform duration-300" />
-            </a>
-          </div>
-        </div>
       </div>
       
       {/* CSS for animations */}

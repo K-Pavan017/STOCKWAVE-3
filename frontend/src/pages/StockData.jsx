@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react"; // Added useRef for consistency although not used directly for wishlist
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useLocation } from "react-router-dom";
 import {
@@ -14,8 +14,9 @@ import {
   LineSeries,
   CurrentCoordinate,
   discontinuousTimeScaleProvider,
+  HoverTooltip,
 } from "react-financial-charts";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import {
   ResponsiveContainer,
   LineChart,
@@ -25,7 +26,7 @@ import {
   XAxis as RechartsXAxis,
   YAxis as RechartsYAxis,
 } from "recharts";
-import { Heart } from "lucide-react"; // Added Heart icon import
+import { Heart } from "lucide-react";
 
 const DURATION_OPTIONS = [
   { label: "1 Month", value: 30 },
@@ -38,19 +39,26 @@ const DURATION_OPTIONS = [
 const PREDICT_OPTIONS = [
   { label: "Next Day", value: "day" },
   { label: "Next Week", value: "week" },
-  { label: "Next Month", value: "month" }, // This will be the default for AI Predict
+  { label: "Next Month", value: "month" },
 ];
 
 function formatDate(date) {
   if (!date) return "";
   if (typeof date === "string" || typeof date === "number") date = new Date(date);
-  return format(date, "MMM dd,yyyy");
+  return format(date, "MMM dd,yyyy"); // Formats as "Jan 01,2023"
 }
 
 function formatShortDate(date) {
   if (!date) return "";
   if (typeof date === "string" || typeof date === "number") date = new Date(date);
-  return format(date, "MMM dd");
+  return format(date, "MMM dd"); // Formats as "Jan 01"
+}
+
+function formatMonthYear(date) {
+  if (!date) return "";
+  if (typeof date === "string" || typeof date === "number") date = new Date(date);
+  // Corrected and robust format string to display Month and Year properly
+  return format(date, "MMM yyyy"); // Formats as "Jan 2023"
 }
 
 function StockData({ width = 1200, ratio = 1 }) {
@@ -62,20 +70,19 @@ function StockData({ width = 1200, ratio = 1 }) {
   const [records, setRecords] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [prediction, setPrediction] = useState(null);
-  const [predictHorizon, setPredictHorizon] = useState("month"); // Default to "month" for 30 days
+  const [predictHorizon, setPredictHorizon] = useState("month");
   const [loading, setLoading] = useState(false);
   const [chartType, setChartType] = useState("candlestick");
   const [predicting, setPredicting] = useState(false);
   const [error, setError] = useState("");
   const [fetchingData, setFetchingData] = useState(false);
-  const [isLiked, setIsLiked] = useState(false); // New state for wishlist
+  const [isLiked, setIsLiked] = useState(false);
 
-  // Helper to manage localStorage for watchlist (from previous interactions, included for completeness if user uses it elsewhere)
   const addSearchedTickerToWatchlist = (tickerSymbol) => {
     try {
       let watchlist = JSON.parse(localStorage.getItem('userWatchlist')) || [];
       if (!watchlist.includes(tickerSymbol)) {
-        watchlist = [tickerSymbol, ...watchlist.slice(0, 4)]; // Keep last 5 unique tickers
+        watchlist = [tickerSymbol, ...watchlist.slice(0, 4)];
         localStorage.setItem('userWatchlist', JSON.stringify(watchlist));
       }
     } catch (e) {
@@ -83,7 +90,6 @@ function StockData({ width = 1200, ratio = 1 }) {
     }
   };
 
-  // Helper to manage localStorage for wishlist
   const toggleWishlist = (tickerSymbol) => {
     try {
       let wishlist = JSON.parse(localStorage.getItem('userWishlist')) || [];
@@ -101,7 +107,6 @@ function StockData({ width = 1200, ratio = 1 }) {
   };
 
   useEffect(() => {
-    // Check if current symbol is in wishlist on load or when symbol changes
     try {
       const wishlist = JSON.parse(localStorage.getItem('userWishlist')) || [];
       setIsLiked(wishlist.includes(symbol));
@@ -109,11 +114,26 @@ function StockData({ width = 1200, ratio = 1 }) {
       console.error("Failed to read wishlist from localStorage", e);
       setIsLiked(false);
     }
-  }, [symbol]); // Re-check when symbol changes
+  }, [symbol]);
   
-  // chartData and chartDataWithPrediction
-  const chartData = records.map((r) => ({
-    date: new Date(r.date), // Ensure date is a Date object
+  // Filter records based on selected duration
+  const getFilteredRecords = (records, duration) => {
+    if (!records || records.length === 0) return [];
+    
+    // Sort records by date (newest first)
+    const sortedRecords = [...records].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    // Take only the number of records specified by duration
+    const filteredRecords = sortedRecords.slice(0, duration);
+    
+    // Sort back to chronological order (oldest first)
+    return filteredRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
+  };
+
+  const filteredRecords = getFilteredRecords(records, duration);
+
+  const chartData = filteredRecords.map((r) => ({
+    date: new Date(r.date),
     open: r.open,
     high: r.high,
     low: r.low,
@@ -123,16 +143,22 @@ function StockData({ width = 1200, ratio = 1 }) {
   }));
 
   const chartDataWithPrediction = [...chartData];
-  if (prediction?.close_series?.length > 0) { // Use close_series from the new prediction structure
-    // Add predicted data to chartDataWithPrediction
+  if (prediction?.close_series?.length > 0) {
+    const lastHistoricalDate = chartData.length > 0 ? chartData[chartData.length - 1].date : null;
+
+    const futurePredictions = prediction.close_series.filter(p => {
+        const predictionDate = new Date(p.date);
+        return lastHistoricalDate ? predictionDate > lastHistoricalDate : true;
+    });
+
     chartDataWithPrediction.push(
-      ...prediction.close_series.map(p => ({ // Use close_series
+      ...futurePredictions.map(p => ({
         date: new Date(p.date),
-        open: p.close, // Use close for open, high, low as placeholders for charting
+        open: p.close,
         high: p.close,
         low: p.close,
         close: p.close,
-        volume: 0, // Predicted volume is usually 0 or N/A
+        volume: 0,
         predicted: true,
       }))
     );
@@ -142,7 +168,7 @@ function StockData({ width = 1200, ratio = 1 }) {
     async function fetchData() {
       setLoading(true);
       setError("");
-      setPrediction(null); // Clear prediction when new historical data is fetched
+      setPrediction(null);
       try {
         const res = await axios.get(`http://127.0.0.1:5000/stock/data/${symbol}`, {
           params: { limit: duration, days: duration },
@@ -162,7 +188,7 @@ function StockData({ width = 1200, ratio = 1 }) {
 
           setRecords(processedRecords);
           setStatistics(res.data.data.statistics);
-          addSearchedTickerToWatchlist(symbol); // Add to watchlist on successful fetch
+          addSearchedTickerToWatchlist(symbol);
         } else {
           setRecords([]);
           setStatistics(null);
@@ -183,17 +209,17 @@ function StockData({ width = 1200, ratio = 1 }) {
     if (!search.trim()) return;
     const newSymbol = search.trim().toUpperCase();
     setSymbol(newSymbol);
-    setPrediction(null); // Clear prediction on new search
+    setPrediction(null);
     setError("");
   };
 
   const handleFetchData = async () => {
     setFetchingData(true);
     setError("");
-    let stockMarket = 'US'; // Default to US market
+    let stockMarket = 'US';
     if (symbol.toUpperCase().endsWith('.NS')) {
-      stockMarket = 'IN'; // If it ends with .NS, it's Indian
-    } else if (symbol.toUpperCase() === 'SBIN') { // Example for SBIN, as it's Indian but might not have .NS entered
+      stockMarket = 'IN';
+    } else if (symbol.toUpperCase() === 'SBIN') {
       stockMarket = 'IN';
     }
     try {
@@ -203,8 +229,6 @@ function StockData({ width = 1200, ratio = 1 }) {
         market: stockMarket,
       });
       if (res.data.success) {
-        //window.location.reload();
-        // Changed fetchStockData to fetchData to match the actual function name in this file
         fetchData();
         setPrediction(null);
       } else {
@@ -218,14 +242,13 @@ function StockData({ width = 1200, ratio = 1 }) {
 
   const handlePredict = async () => {
     setPredicting(true);
-    setPrediction(null); // Clear previous prediction
+    setPrediction(null);
     setError("");
     try {
-      // Always request a "month" (30 days) prediction from the backend
       const res = await axios.get(`http://127.0.0.1:5000/stock/predict/${symbol}?horizon=month`);
 
       if (res.data.success) {
-        setPrediction(res.data.prediction); // Set the entire prediction object
+        setPrediction(res.data.prediction);
       } else {
         setError(res.data.message || "Prediction failed. Please ensure you have sufficient historical data.");
       }
@@ -239,53 +262,88 @@ function StockData({ width = 1200, ratio = 1 }) {
     setChartType(chartType === "candlestick" ? "line" : "candlestick");
   };
 
- 
-  // Calculate y-axis extents based on both historical and predicted data
   const allPrices = chartDataWithPrediction.flatMap(d => [d.open, d.high, d.low, d.close]).filter(p => p > 0);
-  const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0; // Handle empty array
-  const maxPrice = allPrices.length > 0 ? Math.max(...allPrices) : 100; // Handle empty array
+  const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+  const maxPrice = allPrices.length > 0 ? Math.max(...allPrices) : 100;
   
   let priceRange = maxPrice - minPrice;
 
-  // Add a small buffer if priceRange is zero to prevent chart crash on flat data
   if (priceRange === 0 && allPrices.length > 0) {
-    // Use a percentage of the price for buffer if price is not zero, else a fixed small value
     priceRange = minPrice * 0.1;
-    if (priceRange === 0) priceRange = 1; // Fallback to a fixed small buffer if minPrice is also zero
+    if (priceRange === 0) priceRange = 1;
   } else if (allPrices.length === 0) {
-    priceRange = 100; // Default range if no prices available at all
+    priceRange = 100;
   }
 
   const yAxisMin = Math.max(0, minPrice - priceRange * 0.1);
   const yAxisMax = maxPrice + priceRange * 0.1;
 
-
-  // Use chartDataWithPrediction for the chart canvas to include predictions
   const xScaleProvider = discontinuousTimeScaleProvider.inputDateAccessor((d) => d.date);
   const { data, xScale, xAccessor, displayXAccessor } = xScaleProvider(chartDataWithPrediction);
-    const getMonthlyTickValues = (data) => {
+  const getTickValues = (data, duration) => {
+    if (!data || data.length === 0) return [];
+    
     const tickValues = [];
-    let currentMonth = -1;
-    let currentYear = -1;
-
-    data.forEach((d) => {
-      const date = d.date;
-      if (date.getMonth() !== currentMonth || date.getFullYear() !== currentYear) {
-        tickValues.push(date);
-        currentMonth = date.getMonth();
-        currentYear = date.getFullYear();
+    const dataLength = data.length;
+    
+    if (duration <= 30) {
+      // For 1 month or less, show weekly ticks
+      const interval = Math.max(1, Math.floor(dataLength / 4));
+      for (let i = 0; i < dataLength; i += interval) {
+        tickValues.push(data[i].date);
       }
-    });
+    } else if (duration <= 90) {
+      // For 3 months or less, show bi-weekly ticks
+      const interval = Math.max(1, Math.floor(dataLength / 6));
+      for (let i = 0; i < dataLength; i += interval) {
+        tickValues.push(data[i].date);
+      }
+    } else if (duration <= 180) {
+      // For 6 months or less, show monthly ticks
+      let currentMonth = -1;
+      let currentYear = -1;
+      data.forEach((d) => {
+        const date = d.date;
+        if (date.getMonth() !== currentMonth || date.getFullYear() !== currentYear) {
+          tickValues.push(date);
+          currentMonth = date.getMonth();
+          currentYear = date.getFullYear();
+        }
+      });
+    } else {
+      // For longer periods, show quarterly ticks
+      const interval = Math.max(1, Math.floor(dataLength / 8));
+      for (let i = 0; i < dataLength; i += interval) {
+        tickValues.push(data[i].date);
+      }
+    }
+    
+    // Always include the last data point
+    if (dataLength > 0 && !tickValues.includes(data[dataLength - 1].date)) {
+      tickValues.push(data[dataLength - 1].date);
+    }
+    
     return tickValues;
   };
 
-  const monthlyTickValues = getMonthlyTickValues(data); 
-
+  const tickValues = getTickValues(data, duration);
+  
+  // Dynamic tick formatter based on duration
+  const getTickFormatter = (duration) => {
+    if (duration <= 30) {
+      return formatShortDate; // "Jan 01"
+    } else if (duration <= 180) {
+      return formatMonthYear; // "Jan 2023"
+    } else {
+      return formatMonthYear; // "Jan 2023"
+    }
+  };
+  
+  const tickFormatter = getTickFormatter(duration);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
             Stock Analysis Dashboard
@@ -293,11 +351,9 @@ function StockData({ width = 1200, ratio = 1 }) {
           <p className="text-gray-400">Advanced LSTM-powered stock prediction and analysis</p>
         </div>
 
-        {/* Controls Panel */}
         <div className="bg-gray-800/50 backdrop-blur-lg rounded-2xl p-6 mb-8 border border-gray-700/50 shadow-2xl">
           <form onSubmit={handleSearch} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-              {/* Stock Symbol Input */}
               <div className="lg:col-span-2">
                 <label className="block text-sm font-medium text-gray-300 mb-2">Stock Symbol</label>
                 <input
@@ -309,7 +365,6 @@ function StockData({ width = 1200, ratio = 1 }) {
                 />
               </div>
 
-              {/* Duration Select */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Time Period</label>
                 <select
@@ -325,14 +380,13 @@ function StockData({ width = 1200, ratio = 1 }) {
                 </select>
               </div>
 
-              {/* Prediction Horizon - Removed as it's now fixed to 30 days for AI Predict */}
-               <div>
+                <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Prediction</label>
                 <select
                   className="w-full px-4 py-3 rounded-xl bg-gray-700/50 text-white border border-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                   value={predictHorizon}
                   onChange={(e) => setPredictHorizon(e.target.value)}
-                  disabled // Disable as it's fixed for AI Predict
+                  disabled
                 >
                   {PREDICT_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value} className="bg-gray-800">
@@ -342,7 +396,6 @@ function StockData({ width = 1200, ratio = 1 }) {
                 </select>
               </div>
 
-              {/* Action Buttons */}
               <div className="lg:col-span-2 flex gap-2">
                 <button
                   type="submit"
@@ -362,7 +415,6 @@ function StockData({ width = 1200, ratio = 1 }) {
               </div>
             </div>
 
-            {/* Secondary Controls */}
             <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-700/50">
               <button
                 type="button"
@@ -379,7 +431,6 @@ function StockData({ width = 1200, ratio = 1 }) {
               >
                 📊 {chartType === "candlestick" ? "Line Chart" : "Candlestick"}
               </button>
-              {/* Add to Wishlist Button */}
               <button
                 type="button"
                 onClick={() => toggleWishlist(symbol)}
@@ -393,7 +444,6 @@ function StockData({ width = 1200, ratio = 1 }) {
           </form>
         </div>
 
-        {/* Error Message */}
         {error && (
           <div className="mb-6 p-4 bg-red-900/50 backdrop-blur-lg border border-red-500/50 rounded-xl text-red-200 shadow-lg">
             <div className="flex items-center">
@@ -403,7 +453,6 @@ function StockData({ width = 1200, ratio = 1 }) {
           </div>
         )}
 
-        {/* Stock Title and Current Info */}
         {records.length > 0 && (
           <div className="mb-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -425,18 +474,16 @@ function StockData({ width = 1200, ratio = 1 }) {
               </div>
               <div className="text-right text-gray-400 mt-4 md:mt-0">
                 <p>Last Updated: {formatDate(new Date())}</p>
-                <p>{records.length} data points</p>
+                <p>{filteredRecords.length} data points (from {records.length} total)</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Statistics Cards */}
         {statistics && (
           <div className="mb-8">
             <h3 className="text-xl font-semibold text-white mb-4">Market Statistics ({duration} Days)</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-              {/* Price Statistics */}
               <div className="bg-gradient-to-br from-blue-600/20 to-blue-800/20 backdrop-blur-lg rounded-xl p-4 border border-blue-500/30">
                 <p className="text-blue-300 text-sm font-medium">Current</p>
                 <p className="text-white text-xl font-bold">${statistics.price_stats?.current.toFixed(2)}</p>
@@ -454,7 +501,6 @@ function StockData({ width = 1200, ratio = 1 }) {
                 <p className="text-white text-xl font-bold">${statistics.price_stats?.average}</p>
               </div>
               
-              {/* Volume and Performance */}
               <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-800/20 backdrop-blur-lg rounded-xl p-4 border border-yellow-500/30">
                 <p className="text-yellow-300 text-sm font-medium">Avg Volume</p>
                 <p className="text-white text-lg font-bold">
@@ -478,7 +524,6 @@ function StockData({ width = 1200, ratio = 1 }) {
           </div>
         )}
 
-        {/* Prediction Results */}
         {prediction && (
           <div className="mb-8">
             <div className="bg-gradient-to-r from-yellow-600/20 via-yellow-500/20 to-amber-600/20 backdrop-blur-lg rounded-2xl p-6 border border-yellow-500/30 shadow-2xl">
@@ -489,9 +534,7 @@ function StockData({ width = 1200, ratio = 1 }) {
                 </h3>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Displaying the first day's prediction for simplicity,
-                    as the full series will be shown on the chart */}
-                {prediction.predicted_close !== null && ( // Check if predicted_close is not null
+                {prediction.predicted_close !== null && (
                   <>
                     <div className="text-center">
                       <p className="text-yellow-200 text-sm font-medium">Predicted Close (Day 1)</p>
@@ -512,7 +555,7 @@ function StockData({ width = 1200, ratio = 1 }) {
                   </>
                 )}
               </div>
-              {prediction.confidence && ( // Display confidence if available
+              {prediction.confidence && (
                 <div className="mt-4 text-center">
                   <p className="text-yellow-200 text-sm">Model Confidence: {(prediction.confidence * 100).toFixed(1)}%</p>
                 </div>
@@ -521,7 +564,6 @@ function StockData({ width = 1200, ratio = 1 }) {
           </div>
         )}
 
-        {/* Chart Section */}
         {records.length > 0 && (
           <div className="bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 border border-gray-700/50 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
@@ -556,13 +598,12 @@ function StockData({ width = 1200, ratio = 1 }) {
                       <XAxis
                         axisAt="bottom"
                         orient="bottom"
-                        tickFormat={formatShortDate}
-                        //ticks={8}
-                        tickValues={monthlyTickValues}
+                        tickFormat={tickFormatter} 
+                        tickValues={tickValues}
                         stroke="#9CA3AF"
                         tickStroke="#9CA3AF"
                         fontSize={11}
-                        fontFamily="ui-sans-serif, system-ui, sans-serif"
+                        fontFamily="ui-sans-serif, system-ui, sans-serif" 
                       />
                       <YAxis
                         axisAt="left"
@@ -570,27 +611,27 @@ function StockData({ width = 1200, ratio = 1 }) {
                         stroke="#9CA3AF"
                         tickStroke="#9CA3AF"
                         fontSize={11}
-                        fontFamily="ui-sans-serif, system-ui, sans-serif"
+                        fontFamily="ui-sans-serif, system-ui, sans-serif" 
                         tickFormat={(d) => `$${d.toFixed(2)}`}
                       />
 
+                      {/* MouseCoordinateX and MouseCoordinateY provide the hover functionality */}
                       <MouseCoordinateX 
-                        displayFormat={formatDate}
-                        fill="#374151"
-                        stroke="#6B7280"
-                        textFill="#E5E7EB"
+                        displayFormat={formatDate} // Shows full date on X-axis hover
+                        fill="#374151" // Background color of the coordinate display
+                        stroke="#6B7280" // Border color
+                        textFill="#E5E7EB" // Text color
                         fontSize={12}
                       />
 
                       <MouseCoordinateY 
-                        displayFormat={(v) => `$${v.toFixed(2)}`}
-                        fill="#374151"
-                        stroke="#6B7280"
-                        textFill="#E5E7EB"
+                        displayFormat={(v) => `$${v.toFixed(2)}`} // Shows price value on Y-axis hover
+                        fill="#374151" // Background color of the coordinate display
+                        stroke="#6B7280" // Border color
+                        textFill="#E5E7EB" // Text color
                         fontSize={12}
                       />
 
-                      {/* Regular candlesticks */}
                       <CandlestickSeries
                         stroke={(d) => d.predicted ? "#FCD34D" : (d.close > d.open ? "#10B981" : "#EF4444")}
                         wickStroke={(d) => d.predicted ? "#FCD34D" : (d.close > d.open ? "#10B981" : "#EF4444")}
@@ -599,7 +640,6 @@ function StockData({ width = 1200, ratio = 1 }) {
                         strokeWidth={(d) => d.predicted ? 2 : 1}
                       />
                       
-                      {/* Prediction line for better visibility */}
                       {prediction && (
                         <LineSeries
                           yAccessor={(d) => d.predicted ? d.close : null}
@@ -628,7 +668,50 @@ function StockData({ width = 1200, ratio = 1 }) {
                         strokeWidth={2}
                         r={4}
                       />
+                      
+                      <HoverTooltip
+                        yAccessor={(d) => {
+                          return {
+                            date: d.date,
+                            open: d.open,
+                            high: d.high,
+                            low: d.low,
+                            close: d.close,
+                            volume: d.volume,
+                            predicted: d.predicted
+                          };
+                        }}
+                        tooltipContent={({ currentItem }) => {
+                          if (!currentItem) return null;
+                          const data = currentItem;
+                          return (
+                            <div style={{
+                              backgroundColor: '#1F2937',
+                              border: '1px solid #374151',
+                              borderRadius: '8px',
+                              padding: '12px',
+                              color: '#E5E7EB',
+                              fontSize: '12px',
+                              minWidth: '180px'
+                            }}>
+                              <div style={{ fontWeight: 'bold', marginBottom: '8px', color: data.predicted ? '#FCD34D' : '#3B82F6' }}>
+                                {formatDate(data.date)}
+                                {data.predicted && ' (Predicted)'}
+                              </div>
+                              <div>Open: ${data.open?.toFixed(2)}</div>
+                              <div>High: ${data.high?.toFixed(2)}</div>
+                              <div>Low: ${data.low?.toFixed(2)}</div>
+                              <div>Close: ${data.close?.toFixed(2)}</div>
+                              {!data.predicted && <div>Volume: {data.volume?.toLocaleString()}</div>}
+                            </div>
+                          );
+                        }}
+                        fontSize={12}
+                        fill="#1F2937"
+                        stroke="#374151"
+                      />
                     </Chart>
+                    {/* CrossHairCursor displays the intersecting lines on hover */}
                     <CrossHairCursor stroke="#6B7280" strokeWidth={1} />
                   </ChartCanvas>
                 </div>
@@ -643,7 +726,7 @@ function StockData({ width = 1200, ratio = 1 }) {
                     >
                       <RechartsXAxis
                         dataKey="date"
-                        tickFormatter={formatShortDate}
+                        tickFormatter={tickFormatter}
                         tick={{ fill: "#9CA3AF", fontSize: 11 }}
                         stroke="#6B7280"
                         interval="preserveStartEnd"
@@ -671,7 +754,6 @@ function StockData({ width = 1200, ratio = 1 }) {
 
                       <CartesianGrid stroke="#374151" strokeDasharray="3 3" />
                       
-                      {/* Historical data line */}
                       <Line
                         type="monotone"
                         dataKey={(d) => d.predicted ? null : d.close}
@@ -682,7 +764,6 @@ function StockData({ width = 1200, ratio = 1 }) {
                         isAnimationActive={false}
                       />
                       
-                      {/* Prediction line */}
                       {prediction && (
                         <Line
                           type="monotone"
@@ -699,21 +780,21 @@ function StockData({ width = 1200, ratio = 1 }) {
                   </ResponsiveContainer>
                 </div>
               )}
+              
+              {records.length === 0 && !loading && (
+                <div className="text-center py-12">
+                  <p className="text-gray-400 text-lg">No data available for {symbol}</p>
+                  <p className="text-gray-500 text-sm mt-2">Try fetching fresh data or selecting a different symbol</p>
+                </div>
+              )}
+              
+              {loading && (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <p className="text-gray-400 mt-4">Loading chart data...</p>
+                </div>
+              )}
             </div>
-            
-            {records.length === 0 && !loading && (
-              <div className="text-center py-12">
-                <p className="text-gray-400 text-lg">No data available for {symbol}</p>
-                <p className="text-gray-500 text-sm mt-2">Try fetching fresh data or selecting a different symbol</p>
-              </div>
-            )}
-            
-            {loading && (
-              <div className="text-center py-12">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                <p className="text-gray-400 mt-4">Loading chart data...</p>
-              </div>
-            )}
           </div>
         )}
       </div>
