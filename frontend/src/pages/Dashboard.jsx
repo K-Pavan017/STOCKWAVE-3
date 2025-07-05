@@ -25,9 +25,6 @@ import {
 import { motion } from "framer-motion";
 import axios from "axios"; 
 
-import NavBar from "../components/NavBar";
-import Footer from "../components/Footer";
-
 // Reusable animation variants
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },

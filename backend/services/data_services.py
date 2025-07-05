@@ -66,7 +66,7 @@ def get_stored_stock_data(company_symbol, start_date=None, end_date=None, limit=
         else:
             records = query.all()
         
-        print(f"[DB READ] Fetched {len(records)} records for {company_symbol} from DB.")
+        #print(f"[DB READ] Fetched {len(records)} records for {company_symbol} from DB.")
         return records
     except Exception as e:
         print(f"[DB READ ERROR] {company_symbol}: {e}")
@@ -143,7 +143,6 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
         if db_records_chronological:
             records_to_process = db_records_chronological
             source_tag = "DB"
-            print(f"[STATS SOURCE] {symbol}: Data from DB for {len(records_to_process)} days.")
         else:
             # 2. If no recent records in DB, fetch live historical data from yfinance for the period
             print(f"[NO DB DATA FOR STATS] Fetching live historical data for {symbol} for {days} days from YFinance.")
@@ -164,7 +163,6 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
                 # Ensure chronological order for yfinance data if not already (DataFrame index usually is)
                 records_to_process = sorted(records_to_process, key=lambda r: r['date'])
                 source_tag = "YFINANCE_LIVE"
-                print(f"[STATS SOURCE] {symbol}: Data from YFinance for {len(records_to_process)} days.")
             else:
                 print(f"[NO DATA FOR STATS] No historical data found for {symbol} from DB or YFinance for last {days} days.")
                 return None # Still no data, return None

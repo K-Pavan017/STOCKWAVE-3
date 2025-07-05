@@ -106,7 +106,7 @@ def get_stock_data(symbol):
             print(f"[GET_STOCK_DATA] Successfully fetched and stored new data for {formatted_symbol}.")
             # Re-fetch from DB after storing
             records = data_services.get_stored_stock_data(company_symbol=formatted_symbol, limit=limit)
-            records = sorted(records, key=lambda r: r.date) # Ensure chronological order
+            records = sorted(records, key=lambda r: r.date)
         else:
             print(f"[GET_STOCK_DATA_ERROR] Failed to fetch and store data: {message}")
             return jsonify({'success': False, 'message': f"Failed to get historical data for {symbol}: {message}"}), 500 # Return 500 if fetch failed
