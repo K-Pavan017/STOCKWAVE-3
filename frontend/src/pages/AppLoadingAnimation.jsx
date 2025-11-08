@@ -87,24 +87,6 @@ const AppLoadingAnimation = () => {
         </svg>
       </motion.div>
       
-      {/* Bull and Bear waves */}
-      <motion.div 
-        className="absolute left-0 bottom-1/2 w-64"
-        initial={{ opacity: 0, x: -100 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 1.2, duration: 0.8 }}
-      >
-        <img src="/greenwave.png" alt="Bear wave" className="w-full" />
-      </motion.div>
-      
-      <motion.div 
-        className="absolute right-0 bottom-1/2 w-64"
-        initial={{ opacity: 0, x: 100 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 1.2, duration: 0.8 }}
-      >
-        <img src="/greenwave.png" alt="Bull wave" className="w-full" />
-      </motion.div>
       
       {/* Logo */}
       <motion.div 

@@ -555,11 +555,6 @@ function StockData({ width = 1200, ratio = 1 }) {
                   </>
                 )}
               </div>
-              {prediction.confidence && (
-                <div className="mt-4 text-center">
-                  <p className="text-yellow-200 text-sm">Model Confidence: {(prediction.confidence * 100).toFixed(1)}%</p>
-                </div>
-              )}
             </div>
           </div>
         )}

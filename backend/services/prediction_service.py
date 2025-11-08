@@ -35,23 +35,19 @@ def prepare_data_multi_feature(df_full, features_to_scale, window_size=60, train
     # Make a copy to avoid SettingWithCopyWarning
     df_processed = df_full.copy()
 
-    # Drop rows with NaNs AFTER feature engineering, BEFORE scaling.
-    # This df_processed will have the correct dates corresponding to clean data.
-    # Ensure this dropna aligns with when features are added in lstm_predict_multiple
     df_processed.dropna(inplace=True)
 
-    # Separate the data to be scaled from other columns like 'date'
     data_to_scale = df_processed[features_to_scale].values
 
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_data = scaler.fit_transform(data_to_scale)
 
     X, y = [], []
-    close_feature_idx = features_to_scale.index('close') # Index of 'close' within the features_to_scale list
+    close_feature_idx = features_to_scale.index('close')
 
     for i in range(window_size, len(scaled_data)):
         X.append(scaled_data[i - window_size:i])
-        y.append(scaled_data[i, close_feature_idx]) # Predict only the scaled 'close' price
+        y.append(scaled_data[i, close_feature_idx]) 
 
     X = np.array(X)
     y = np.array(y)
@@ -60,8 +56,7 @@ def prepare_data_multi_feature(df_full, features_to_scale, window_size=60, train
     X_train, X_test = X[:split_idx], X[split_idx:]
     y_train, y_test = y[:split_idx], y[split_idx:]
 
-    # Return df_processed which contains all original columns (including date)
-    # but only for the rows that were not dropped by dropna().
+
     return X_train, y_train, X_test, y_test, scaler, scaled_data, df_processed
 
 def build_model_improved(input_shape):
@@ -70,14 +65,14 @@ def build_model_improved(input_shape):
         Dropout(0.3),
         LSTM(64, return_sequences=False),
         Dropout(0.3),
-        Dense(1) # Still predicting a single value (close price)
+        Dense(1) 
     ])
     model.compile(optimizer='adam', loss='mean_squared_error')
     return model
 
 def predict_multiple_steps_multi_feature(model, input_seq, scaler, steps, num_features, close_feature_idx):
     predictions = []
-    current_input = input_seq.copy() # Shape (1, window_size, num_features)
+    current_input = input_seq.copy() 
 
     for _ in range(steps):
         next_pred_scaled = model.predict(current_input, verbose=0)[0][0]
@@ -97,28 +92,21 @@ def predict_multiple_steps_multi_feature(model, input_seq, scaler, steps, num_fe
     return predicted_close_prices
 
 def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
-    # Define features for scaling and model input
     features_to_scale = ['open', 'high', 'low', 'close', 'volume']
-    
-    # Fetch enough data for window size and feature engineering (e.g., SMAs)
     df = get_data_from_db(symbol, lookback_days + 120)
 
-    # --- ADDED PRINT STATEMENT HERE ---
     if df is not None:
         print(f"--- DB records fetched for prediction for {symbol}: {len(df)} days ---")
     else:
         print(f"--- No records fetched from DB for prediction for {symbol} ---")
-    # --- END ADDED PRINT STATEMENT ---
 
     if df is None or df.empty or len(df) < 200:
         return None, "Insufficient data to train model or generate features."
-
-    # --- Feature Engineering (before preparing data for LSTM) ---
+    
     df.loc[:, 'SMA_10'] = df['close'].rolling(window=10).mean()
     df.loc[:, 'EMA_10'] = df['close'].ewm(span=10, adjust=False).mean()
     df.loc[:, 'Daily_Return'] = df['close'].pct_change()
 
-    # Add these new features to the list of features to be scaled
     features_to_scale.extend(['SMA_10', 'EMA_10', 'Daily_Return'])
     
     steps_map = {'day': 1, 'week': 7, 'month': 30, '3month': 90}
@@ -135,7 +123,7 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
         return None, "Not enough data to create a test set for evaluation. Consider increasing lookback_days."
 
     model = build_model_improved((X_train.shape[1], X_train.shape[2]))
-    history = model.fit(X_train, y_train, epochs=30, batch_size=32, verbose=1, validation_split=0.1)
+    history = model.fit(X_train, y_train, epochs=100, batch_size=16, verbose=1, validation_split=0.1)
 
     test_loss = model.evaluate(X_test, y_test, verbose=0)
     print(f"Test Loss (MSE): {test_loss}")

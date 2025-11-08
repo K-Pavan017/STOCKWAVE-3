@@ -23,8 +23,7 @@ def validate_stock_symbol(company_symbol, market='US'):
         print(f"[VALIDATION ERROR] {symbol}: {e}")
         return False
 
-# --- Fetch Historical Data ---
-# Modified to accept days or months for period, and return a DataFrame
+
 def get_historical_data(company_symbol, months=None, days=None, period_type='months', market='US'):
     try:
         symbol = format_symbol(company_symbol, market)
@@ -32,14 +31,11 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
 
         period_str = "1mo" # Default period
         if period_type == 'days' and days is not None:
-            # yfinance periods are limited, for days we request a slightly larger period to ensure enough data
-            # e.g., if asking for 1 day, sometimes '1d' period might be empty for weekends/holidays.
-            # Requesting '5d' is a common practice to get recent daily data.
-            period_str = f"{max(days, 5)}d" # Get at least 5 days to be safe
+            period_str = f"{max(days, 5)}d" 
         elif months is not None:
             period_str = f"{months}mo"
         
-        hist = ticker.history(period=period_str, interval="1d") # Always get daily interval
+        hist = ticker.history(period=period_str, interval="1d") 
 
         if hist.empty:
             print(f"[YFINANCE] No historical data found for {symbol} for period {period_str}.")
@@ -49,7 +45,6 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
         print(f"[YFINANCE ERROR] {symbol}: {e}")
         return None
 
-# --- Get Stored Stock Data ---
 def get_stored_stock_data(company_symbol, start_date=None, end_date=None, limit=None):
     try:
         query = StockData.query.filter_by(company_symbol=company_symbol)
@@ -66,13 +61,11 @@ def get_stored_stock_data(company_symbol, start_date=None, end_date=None, limit=
         else:
             records = query.all()
         
-        #print(f"[DB READ] Fetched {len(records)} records for {company_symbol} from DB.")
         return records
     except Exception as e:
         print(f"[DB READ ERROR] {company_symbol}: {e}")
         return []
 
-# --- Fetch and Store Stock Data (from Hero.jsx) ---
 def fetch_and_store_stock(company_symbol, months=18, market='US'):
     symbol = format_symbol(company_symbol, market)
     try:
@@ -80,11 +73,6 @@ def fetch_and_store_stock(company_symbol, months=18, market='US'):
         if df is None or df.empty:
             return False, f"No data found for {symbol} from yfinance."
 
-        # Delete existing data for the symbol to prevent duplicates for the same date
-        # Note: This approach might be too aggressive for partial updates.
-        # Consider a more sophisticated merge if only updating recent data.
-        # For simplicity, if we fetch 18 months, we assume we overwrite/update that range.
-        # Better: use db.session.merge or check for existence before adding.
         StockData.query.filter_by(company_symbol=symbol).delete()
         db.session.commit()
         print(f"[DB CLEANUP] Deleted existing records for {symbol}.")
@@ -107,11 +95,13 @@ def fetch_and_store_stock(company_symbol, months=18, market='US'):
                 stock_data = StockData(
                     company_symbol=symbol,
                     date=date,
-                    open_price=row['Open'],
-                    high_price=row['High'],
-                    low_price=row['Low'],
-                    close_price=row['Close'],
-                    volume=row['Volume']
+                     open_price=float(row['Open']),
+                    high_price=float(row['High']),
+                    low_price=float(row['Low']),
+                    close_price=float(row['Close']),
+                    volume=int(row['Volume']),
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
                 )
                 db.session.add(stock_data)
         
@@ -119,7 +109,7 @@ def fetch_and_store_stock(company_symbol, months=18, market='US'):
         print(f"[DB WRITE] Successfully fetched and stored {len(df)} records for {symbol}.")
         return True, f"Successfully fetched and stored data for {symbol}."
     except Exception as e:
-        db.session.rollback() # Rollback on error
+        db.session.rollback() 
         print(f"[STORAGE ERROR] {symbol}: {e}")
         return False, f"Failed to fetch and store data for {symbol}: {e}"
 

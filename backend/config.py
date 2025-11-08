@@ -1,6 +1,7 @@
 import os
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'ABC'  # Replace with a strong, actual secret key
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///site.db'  # Use your preferred database URI
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'ABC'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://postgres:Pavan%40017@localhost:5432/db'
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False

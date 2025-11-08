@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 # Assuming config.py exists and defines a Config class
 from config import Config
+from waitress import serve
 from database import db # Assuming database.py only exports 'db' (SQLAlchemy instance)
 from models.stock_data import StockData # Ensure this is imported for db.create_all
 from services import auth_service, data_services, prediction_service # Assuming these service modules exist
@@ -190,4 +191,6 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     # Host on '0.0.0.0' to be accessible from other devices on the network, if needed
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    ####  (last) app.run(debug=True, host='0.0.0.0', port=5000)
+
+    serve(app, host="0.0.0.0", port=8080)
