@@ -170,7 +170,7 @@ function StockData({ width = 1200, ratio = 1 }) {
       setError("");
       setPrediction(null);
       try {
-        const res = await axios.get(`http://127.0.0.1:5000/stock/data/${symbol}`, {
+        const res = await axios.get(`${REACT_APP_BACKEND_URL}/stock/data/${symbol}`, {
           params: { limit: duration, days: duration },
         });
         if (res.data.success) {
@@ -223,7 +223,7 @@ function StockData({ width = 1200, ratio = 1 }) {
       stockMarket = 'IN';
     }
     try {
-      const res = await axios.post("http://127.0.0.1:5000/stock/fetch", {
+      const res = await axios.post(`${REACT_APP_BACKEND_URL}/stock/fetch`, {
         symbol: symbol,
         months: 24,
         market: stockMarket,
@@ -245,7 +245,7 @@ function StockData({ width = 1200, ratio = 1 }) {
     setPrediction(null);
     setError("");
     try {
-      const res = await axios.get(`http://127.0.0.1:5000/stock/predict/${symbol}?horizon=month`);
+      const res = await axios.get(`${REACT_APP_BACKEND_URL}/stock/predict/${symbol}?horizon=month`);
 
       if (res.data.success) {
         setPrediction(res.data.prediction);

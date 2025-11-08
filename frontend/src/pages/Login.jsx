@@ -77,7 +77,7 @@ const Login = () => {
     if (validateForm()) {
       setIsLoading(true);
       try {
-        const res = await axios.post('http://127.0.0.1:5000/login', values);
+        const res = await axios.post(`${REACT_APP_BACKEND_URL}/login`, values);
         // After successful login
 if (res.data.success) {
   localStorage.setItem('user', JSON.stringify({
