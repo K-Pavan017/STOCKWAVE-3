@@ -3,20 +3,22 @@ Flask==3.1.2
 Flask-Cors==4.0.0
 Flask-SQLAlchemy==3.1.1
 psycopg2-binary==2.9.10
-python-dotenv==1.0.0
-waitress==2.1.2
+python-dotenv==1.0.1      # Changed from 1.0.0 to latest stable patch
+waitress==3.0.0           # Changed from 2.1.2 to latest stable version
 
 # ---- Data processing ----
 pandas==2.2.3
 pyarrow==16.1.0
 requests==2.32.3
 
-# ---- ML / Prediction ----
+# ---- ML / Prediction (Updated for Compatibility with Python 3.11) ----
 numpy==1.26.4
 scikit-learn==1.5.2
-tensorflow-cpu==2.17.0
-tensorboard==2.17.0
-protobuf==4.25.3
+# Use a version known to have a Python 3.11 wheel
+tensorflow-cpu==2.15.1
+# This specific protobuf version is required by TensorFlow 2.15.x
+protobuf==3.20.3
+tensorboard==2.15.2       # Matching TensorBoard to the TensorFlow version
 
 # ---- Visualization ----
 matplotlib==3.9.2
