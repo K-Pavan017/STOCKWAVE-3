@@ -1,4 +1,4 @@
-# Flask and backend
+# ---- Flask backend ----
 Flask==3.1.2
 Flask-Cors==4.0.0
 Flask-SQLAlchemy==3.1.1
@@ -6,26 +6,25 @@ psycopg2-binary==2.9.10
 python-dotenv==1.0.0
 waitress==2.1.2
 
-# Data processing
-pandas==2.3.3
-pyarrow==14.0.1
-requests==2.32.0
+# ---- Data processing ----
+pandas==2.2.3
+pyarrow==16.1.0
+requests==2.32.3
 
-# ML & prediction
+# ---- ML / Prediction ----
 numpy==1.26.4
 scikit-learn==1.5.2
+tensorflow-cpu==2.17.0
+tensorboard==2.17.0
+protobuf==4.25.3
 
-ml-dtypes==0.4.0
-protobuf==3.20.3
-tensorboard==2.19.0
-yfinance==0.2.43
-matplotlib==3.8.1
-tensorflow-cpu==2.20.0
+# ---- Visualization ----
+matplotlib==3.9.2
 
-# Build tools
-setuptools>=68.0.0
-wheel>=0.41.0
+# ---- Optional scraping ----
+beautifulsoup4==4.12.3
+html5lib==1.1
 
-# Optional parsing & scraping
-beautifulsoup4>=4.11.1
-html5lib>=1.1
+# ---- Build tools ----
+setuptools>=70.0.0
+wheel>=0.43.0
