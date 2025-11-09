@@ -13,11 +13,18 @@ requests==2.32.0
 
 # ML & prediction
 scikit-learn==1.7.2
-numpy==1.26.4
+numpy>=1.26.0,<2
 scipy==1.16.3
 yfinance==0.2.43
 matplotlib==3.8.1
+tensorflow-cpu==2.20.0
+ml-dtypes>=0.5.1
+protobuf>=5.28.0
 
 # Build tools
 setuptools>=68.0.0
 wheel>=0.41.0
+
+# Optional parsing & scraping
+beautifulsoup4>=4.11.1
+html5lib>=1.1
