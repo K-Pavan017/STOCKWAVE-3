@@ -16,7 +16,7 @@ scikit-learn
 numpy
 scipy==1.11.3
 yfinance==0.2.43
-matplotlib
+matplotlib==3.8.1
 
 # TensorFlow
 tensorflow-cpu
