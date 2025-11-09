@@ -13,7 +13,8 @@ requests==2.32.0
 
 # ML & prediction
 numpy==1.26.4
-scikit-learn==1.6.3
+scikit-learn==1.5.2
+
 ml-dtypes==0.4.0
 protobuf==3.20.3
 tensorboard==2.19.0
