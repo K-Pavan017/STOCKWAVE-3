@@ -7,19 +7,19 @@ python-dotenv==1.0.0
 waitress==2.1.2
 
 # Data processing
-pandas
+pandas==2.3.3
 pyarrow==14.0.1
 requests==2.32.0
 
 # ML & prediction
-scikit-learn
-numpy
-scipy
+scikit-learn==1.7.2
+numpy==1.26.4
+scipy==1.16.3
 yfinance==0.2.43
 matplotlib==3.8.1
 
 # TensorFlow
-tensorflow-cpu
+tensorflow-cpu==2.20.0
 protobuf==4.23.4
 
 # Build tools
