@@ -186,11 +186,9 @@ def predict_stock(symbol):
 
     return jsonify({"success": False, "message": "Prediction could not be generated."}), 500
 
-if __name__ == '__main__':
-    # Ensure tables are created when running app.py directly
+
+if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    # Host on '0.0.0.0' to be accessible from other devices on the network, if needed
-    ####  (last) app.run(debug=True, host='0.0.0.0', port=5000)
-
-    serve(app, host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 8080))
+    serve(app, host="0.0.0.0", port=port)
