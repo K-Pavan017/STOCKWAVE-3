@@ -21,7 +21,6 @@ tensorflow-cpu==2.20.0
 ml-dtypes==0.5.1
 protobuf>=5.28.0
 
-
 # Build tools
 setuptools>=68.0.0
 wheel>=0.41.0
