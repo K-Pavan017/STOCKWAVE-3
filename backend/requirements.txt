@@ -20,8 +20,7 @@ matplotlib==3.8.1
 
 # TensorFlow
 tensorflow-cpu==2.20.0
-protobuf==4.23.4
-
+protobuf>=5.28.0
 # Build tools
 setuptools>=68.0.0
 wheel>=0.41.0
