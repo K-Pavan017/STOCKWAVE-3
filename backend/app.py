@@ -3,6 +3,7 @@ from flask_cors import CORS
 # Assuming config.py exists and defines a Config class
 from config import Config
 from waitress import serve
+import jwt 
 import os
 from database import db # Assuming database.py only exports 'db' (SQLAlchemy instance)
 from models.stock_data import StockData # Ensure this is imported for db.create_all
