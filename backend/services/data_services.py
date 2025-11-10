@@ -1,6 +1,6 @@
 import yfinance as yf
-from ..models.stock_data import StockData
-from.. database import db
+from models.stock_data import StockData
+from database import db
 from datetime import datetime, timedelta
 import pandas as pd
 from math import ceil
