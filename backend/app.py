@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 # Assuming config.py exists and defines a Config class
-from config import Config
+from backend.config import Config
 from waitress import serve
 import jwt 
 import os
