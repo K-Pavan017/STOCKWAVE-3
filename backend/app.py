@@ -14,6 +14,8 @@ import pandas as pd
 from math import ceil # Import ceil for calculating months
 # In app.py or equivalent config file
 from flask_migrate import Migrate
+import sys, os
+sys.path.append(os.path.dirname(__file__))
 # ...
 # Initialize SQLAlchemy (db) and Flask-Migrate (migrate)
 
