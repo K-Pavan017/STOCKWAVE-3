@@ -1,17 +1,21 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 # Assuming config.py exists and defines a Config class
-from config import Config
+from .config import Config
 from waitress import serve
 import jwt 
 import os
-from database import db # Assuming database.py only exports 'db' (SQLAlchemy instance)
-from models.stock_data import StockData # Ensure this is imported for db.create_all
-from services import auth_service, data_services, prediction_service # Assuming these service modules exist
+from .database import db # Assuming database.py only exports 'db' (SQLAlchemy instance)
+from .models.stock_data import StockData # Ensure this is imported for db.create_all
+from .services import auth_service, data_services, prediction_service # Assuming these service modules exist
 
 from datetime import datetime, timedelta
 import pandas as pd
 from math import ceil # Import ceil for calculating months
+# In app.py or equivalent config file
+from flask_migrate import Migrate
+# ...
+# Initialize SQLAlchemy (db) and Flask-Migrate (migrate)
 
 app = Flask(__name__)
 app.config.from_object(Config) # Load configuration from Config object
@@ -21,6 +25,9 @@ CORS(app,
 
 # Initialize SQLAlchemy with the Flask app
 db.init_app(app)
+
+migrate = Migrate(app, db)
+
 
 # Create database tables if they don't exist
 # This should be done within the application context, preferably once on startup.

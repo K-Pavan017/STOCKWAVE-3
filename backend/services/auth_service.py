@@ -1,5 +1,5 @@
-from models.users import User
-from database import db
+from ..models.users import User
+from ..database import db
 from flask import jsonify, make_response # 👈 ADDED make_response
 from datetime import timedelta
 import jwt # 👈 Assuming you use JWTs for stateless auth (Highly recommended)
