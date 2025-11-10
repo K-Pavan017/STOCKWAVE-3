@@ -5,7 +5,7 @@ from backend.config import Config
 from waitress import serve
 import jwt 
 import os
-from database import db # Assuming database.py only exports 'db' (SQLAlchemy instance)
+from backend.database import db # Assuming database.py only exports 'db' (SQLAlchemy instance)
 from models.stock_data import StockData # Ensure this is imported for db.create_all
 from services import auth_service, data_services, prediction_service # Assuming these service modules exist
 
