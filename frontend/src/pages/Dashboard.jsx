@@ -104,7 +104,7 @@ export default function Dashboard() {
       for (const ticker of watchlistTickers) {
         try {
           // Assuming /api/stock_info gives comprehensive details
-          const response = await axios.get(`http://127.0.0.1:5000/api/stock_info/${ticker}`);
+          const response = await axios.get(`${backendUrl}/${ticker}`);
           if (response.data.success) {
             fetchedData.push(response.data.data);
           } else {
@@ -132,7 +132,7 @@ export default function Dashboard() {
       const fetchedData = [];
       for (const ticker of wishlistTickers) {
         try {
-          const response = await axios.get(`http://127.0.0.1:5000/api/stock_info/${ticker}`);
+          const response = await axios.get(`${backendUrl}/${ticker}`);
           if (response.data.success) {
             fetchedData.push(response.data.data);
           } else {

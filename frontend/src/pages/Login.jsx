@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import { Eye, EyeOff, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 
+const backendUrl =import.meta.env.REACT_APP_BACKEND_URL; 
+
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [values, setValues] = useState({ email: '', password: '' });
@@ -77,7 +79,7 @@ const Login = () => {
     if (validateForm()) {
       setIsLoading(true);
       try {
-        const res = await axios.post(`${REACT_APP_BACKEND_URL}/login`, values,{ withCredentials: true });
+        const res = await axios.post(`${backendUrl}/login`, values,{ withCredentials: true });
         // After successful login
 if (res.data.success) {
   localStorage.setItem('user', JSON.stringify({

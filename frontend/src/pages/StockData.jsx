@@ -28,6 +28,8 @@ import {
 } from "recharts";
 import { Heart } from "lucide-react";
 
+const backendUrl =import.meta.env.REACT_APP_BACKEND_URL; 
+
 const DURATION_OPTIONS = [
   { label: "1 Month", value: 30 },
   { label: "3 Months", value: 90 },
@@ -170,7 +172,7 @@ function StockData({ width = 1200, ratio = 1 }) {
       setError("");
       setPrediction(null);
       try {
-        const res = await axios.get(`${REACT_APP_BACKEND_URL}/stock/data/${symbol}`, {
+        const res = await axios.get(`${backendUrl}/stock/data/${symbol}`, {
           params: { limit: duration, days: duration },
         });
         if (res.data.success) {
@@ -223,7 +225,7 @@ function StockData({ width = 1200, ratio = 1 }) {
       stockMarket = 'IN';
     }
     try {
-      const res = await axios.post(`${REACT_APP_BACKEND_URL}/stock/fetch`, {
+      const res = await axios.post(`${backendUrl}/stock/fetch`, {
         symbol: symbol,
         months: 24,
         market: stockMarket,
@@ -245,7 +247,7 @@ function StockData({ width = 1200, ratio = 1 }) {
     setPrediction(null);
     setError("");
     try {
-      const res = await axios.get(`${REACT_APP_BACKEND_URL}/stock/predict/${symbol}?horizon=month`);
+      const res = await axios.get(`${backendUrl}/stock/predict/${symbol}?horizon=month`);
 
       if (res.data.success) {
         setPrediction(res.data.prediction);
