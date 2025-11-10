@@ -28,7 +28,7 @@ import {
 } from "recharts";
 import { Heart } from "lucide-react";
 
-const backendUrl =import.meta.env.REACT_APP_BACKEND_URL; 
+const backendUrl =import.meta.env.VITE_APP_BACKEND_URL; 
 
 const DURATION_OPTIONS = [
   { label: "1 Month", value: 30 },

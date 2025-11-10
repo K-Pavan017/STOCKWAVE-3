@@ -25,6 +25,7 @@ import {
 import { motion } from "framer-motion";
 import axios from "axios"; 
 
+const backendUrl =import.meta.env.VITE_APP_BACKEND_URL; 
 // Reusable animation variants
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },

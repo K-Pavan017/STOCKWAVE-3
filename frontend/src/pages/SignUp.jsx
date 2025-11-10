@@ -6,7 +6,7 @@ import axios from 'axios';
 
 
 
-const backendUrl =import.meta.env.REACT_APP_BACKEND_URL; 
+const backendUrl =import.meta.env.VITE_APP_BACKEND_URL; 
 const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
   // const [values, setValues] = useState({ email: '', password: '', confirmPassword: '' });
@@ -124,10 +124,10 @@ const SignUp = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-blue-900 to-gray-900 opacity-80" />
 
       {/* Background image */}
-      <div
+      {/* <div
         className="absolute inset-0 bg-cover bg-center opacity-20"
         style={{ backgroundImage: 'url("/stock.png")' }}
-      />
+      /> */}
 
       
       {/* Logo */}

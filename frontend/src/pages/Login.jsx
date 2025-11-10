@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Eye, EyeOff, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 
-const backendUrl =import.meta.env.REACT_APP_BACKEND_URL; 
+const backendUrl =import.meta.env.VITE_APP_BACKEND_URL; 
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
