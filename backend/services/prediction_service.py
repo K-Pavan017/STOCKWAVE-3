@@ -4,7 +4,7 @@ from keras.models import Sequential
 from keras.layers import LSTM, Dense, Dropout
 from sklearn.preprocessing import MinMaxScaler
 from datetime import datetime, timedelta
-from backend.models.stock_data import StockData
+from models.stock_data import StockData
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 def get_data_from_db(symbol, lookback_days):
