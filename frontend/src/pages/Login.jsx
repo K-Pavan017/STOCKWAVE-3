@@ -92,7 +92,12 @@ if (res.data.success) {
         }
       } catch (err) {
         console.error('Login request error:', err);
-        setBackendError('Server error. Please try again later.');
+        if (err.response && err.response.data && err.response.data.message) {
+          setBackendError(err.response.data.message);
+        } else {
+          setBackendError('An error occurred. Please try again later.');
+        }
+
       } finally {
         setIsLoading(false);
       }
@@ -184,6 +189,7 @@ if (res.data.success) {
                     errors.password ? 'border-red-500' : 'border-gray-600'
                   } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition duration-200`}
                   placeholder="••••••••"
+                  autocomplete="current-password"
                 />
                 <button
                   type="button"
