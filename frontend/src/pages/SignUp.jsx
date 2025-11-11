@@ -182,6 +182,7 @@ const SignUp = () => {
       errors.username ? 'border-red-500' : 'border-gray-600'
     } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition duration-200`}
     placeholder="your_username"
+    autocomplete="current-password"
   />
   {errors.username && <p className="mt-1 text-sm text-red-400">{errors.username}</p>}
 </div>
