@@ -2,9 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sys
 import os
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import Config
 from waitress import serve
@@ -19,8 +17,6 @@ import pandas as pd
 from math import ceil # Import ceil for calculating months
 # In app.py or equivalent config file
 from flask_migrate import Migrate
-import sys, os
-sys.path.append(os.path.dirname(__file__))
 # ...
 # Initialize SQLAlchemy (db) and Flask-Migrate (migrate)
 
