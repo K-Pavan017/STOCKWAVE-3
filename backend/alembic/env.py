@@ -66,13 +66,13 @@ def run_migrations_online() -> None:
         url = config.get_main_option("sqlalchemy.url")
     # ---------------------------
 
+    config.set_main_option("sqlalchemy.url", url)
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        # Pass the dynamically determined URL here:
-        url=url
     )
+    
 
     with connectable.connect() as connection:
         context.configure(
