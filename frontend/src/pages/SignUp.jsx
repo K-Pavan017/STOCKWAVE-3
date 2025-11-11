@@ -221,6 +221,7 @@ const SignUp = () => {
                     errors.password ? 'border-red-500' : 'border-gray-600'
                   } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition duration-200`}
                   placeholder="••••••••"
+                  autocomplete="current-password"
                 />
                 <button
                   type="button"
@@ -250,6 +251,7 @@ const SignUp = () => {
                     errors.confirmPassword ? 'border-red-500' : 'border-gray-600'
                   } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition duration-200`}
                   placeholder="••••••••"
+                  autocomplete="current-password"
                 />
                 <button
                   type="button"

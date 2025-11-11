@@ -169,6 +169,7 @@ if (res.data.success) {
                   errors.email ? 'border-red-500' : 'border-gray-600'
                 } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition duration-200`}
                 placeholder="name@example.com"
+                autocomplete="current-password"
               />
               {errors.email && <p className="mt-1 text-sm text-red-400">{errors.email}</p>}
             </div>
