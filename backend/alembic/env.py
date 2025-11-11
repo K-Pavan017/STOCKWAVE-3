@@ -2,6 +2,9 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from database import db  # Import your Base where models are defined
+from models.users import User
+from models.stock_data import StockData # Import all your models to ensure they are registered with Base
 
 from alembic import context
 import os
