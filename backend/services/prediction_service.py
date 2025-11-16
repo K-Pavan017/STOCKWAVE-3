@@ -26,7 +26,7 @@ def get_model_paths(symbol):
     # Sanitizes symbol for use in a filename
     base_name = f"{symbol.replace('^', '_').upper()}"
     return {
-        'model': os.path.join(MODEL_STORAGE_DIR, f"{base_name}_model.h5"),
+        'model': os.path.join(MODEL_STORAGE_DIR, f"{base_name}_model.keras"),
         'scaler': os.path.join(MODEL_STORAGE_DIR, f"{base_name}_scaler.pkl")
     }
 # --- End Configuration ---
