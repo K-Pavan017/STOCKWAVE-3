@@ -158,9 +158,6 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
             model = None
 
     # 2. Data Fetching
-    # If training (or forcing retraining), we need enough data (lookback_days + 120 buffer)
-    # If loading, we only strictly need the last window_size sequence, but we fetch the full amount 
-    # to re-calculate indicators and prepare the last sequence with the correct scaling structure.
     data_limit = lookback_days + 120
     df = get_data_from_db(symbol, data_limit)
 
@@ -244,7 +241,7 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
         model, last_input_sequence, scaler, steps, num_features, close_feature_idx
     )
 
-    # 6. Format Results (same as original)
+    # 6. Format Results (FIXED: Close series defined first)
     last_date = df_processed['date'].iloc[-1]
     future_dates = []
     current = last_date
@@ -254,7 +251,7 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
         if current.weekday() < 5: # Only include weekdays
             future_dates.append(current)
 
-    # Ensure dates and predictions arrays are the same length (only needed if logic above is complex)
+    # Ensure dates and predictions arrays are the same length
     if len(predicted_close_prices) > len(future_dates):
         predicted_close_prices = predicted_close_prices[:len(future_dates)]
     elif len(predicted_close_prices) < len(future_dates):
@@ -262,20 +259,26 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
 
     first_predicted_close = round(float(predicted_close_prices[0]), 2) if len(predicted_close_prices) > 0 else None
 
+    # --- FIX START: Calculate close_series_data first to avoid UnboundLocalError ---
+    close_series_data = [
+        {'date': d.strftime('%Y-%m-%d'), 'close': round(float(p), 2), 'predicted': True}
+        for d, p in zip(future_dates, predicted_close_prices)
+    ]
+    # --- FIX END ---
+    
+    # Now, define result, referencing close_series_data instead of result['close_series']
     result = {
         'predicted_close': first_predicted_close,
         # Simplified assumption for open/high/low for the first day
         'predicted_open': first_predicted_close, 
         'predicted_high': round(float(first_predicted_close * 1.01), 2) if first_predicted_close is not None else None,
         'predicted_low': round(float(first_predicted_close * 0.99), 2) if first_predicted_close is not None else None,
-        'close_series': [
-            {'date': d.strftime('%Y-%m-%d'), 'close': round(float(p), 2), 'predicted': True}
-            for d, p in zip(future_dates, predicted_close_prices)
-        ],
-        # Replicate close price series for other required chart series
-        'open_series': [{'date': d['date'], 'open': d['close'], 'predicted': True} for d in result['close_series']],
-        'high_series': [{'date': d['date'], 'high': round(d['close'] * 1.01, 2), 'predicted': True} for d in result['close_series']],
-        'low_series': [{'date': d['date'], 'low': round(d['close'] * 0.99, 2), 'predicted': True} for d in result['close_series']],
+        'close_series': close_series_data, # Use the pre-calculated list
+        
+        # Use the pre-calculated list (close_series_data) to derive other series
+        'open_series': [{'date': d['date'], 'open': d['close'], 'predicted': True} for d in close_series_data],
+        'high_series': [{'date': d['date'], 'high': round(d['close'] * 1.01, 2), 'predicted': True} for d in close_series_data],
+        'low_series': [{'date': d['date'], 'low': round(d['close'] * 0.99, 2), 'predicted': True} for d in close_series_data],
         'confidence': 0.85
     }
 
