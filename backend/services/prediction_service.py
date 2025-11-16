@@ -187,7 +187,7 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
         # Build and Fit Model
         model = build_model_improved((X_train.shape[1], X_train.shape[2]))
         # Reduced epochs for speed; adjust this number for better accuracy if needed
-        history = model.fit(X_train, y_train, epochs=10, batch_size=16, verbose=1, validation_split=0.1) 
+        history = model.fit(X_train, y_train, epochs=40, batch_size=16, verbose=1, validation_split=0.1) 
         
         # --- Evaluation (Only run on training) ---
         test_loss = model.evaluate(X_test, y_test, verbose=0)
