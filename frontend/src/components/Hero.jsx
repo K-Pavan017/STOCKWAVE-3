@@ -50,6 +50,9 @@ export default function Hero() {
     return () => clearInterval(interval);
   }, []);
 
+  const backendUrl =import.meta.env.VITE_APP_BACKEND_URL; 
+
+
   // Fetch real-time data for ticker and dashboard preview
   useEffect(() => {
     const fetchRealTimeData = async () => {
@@ -58,7 +61,7 @@ export default function Hero() {
       
       for (const s of symbolsToFetch) {
         try {
-          const response = await axios.get(`http://127.0.0.1:5000/api/stock_info/${s}`);
+          const response = await axios.get(`${backendUrl}/api/stock_info/${s}`);
           if (response.data.success) {
             const data = response.data.data;
             const price = data.current_price ? `$${data.current_price.toFixed(2)}` : 'N/A';
@@ -75,7 +78,7 @@ export default function Hero() {
             // If it's TSLA, also update the dashboard preview
             if (s === "TSLA") {
               // Fetch statistics for open, volume, high as well
-              const statsResponse = await axios.get(`http://127.0.0.1:5000/api/stock_statistics/${s}`);
+              const statsResponse = await axios.get(`${backendUrl}/api/stock_statistics/${s}`);
               if (statsResponse.data.success) {
                 const stats = statsResponse.data.data;
                 setDashboardPreviewStock({
@@ -118,7 +121,7 @@ const handleSearch = async () => {
     // First, fetch and store the stock data
     console.log(`Fetching data for ${trimmedSymbol}...`);
 
-    const fetchRes = await axios.post('http://127.0.0.1:5000/stock/fetch', {
+    const fetchRes = await axios.post(`${backendUrl}/stock/fetch`, {
       symbol: trimmedSymbol,
       months: 18
     });
@@ -133,7 +136,7 @@ const handleSearch = async () => {
         : {}; // Provide a default empty object if statistics is undefined
 
       // Then, get the stored data for display
-      const getRes = await axios.get(`http://127.0.0.1:5000/stock/data/${trimmedSymbol}`, {
+      const getRes = await axios.get(`${backendUrl}/stock/data/${trimmedSymbol}`, {
         params: {
           limit: 365,
           days: 365,
