@@ -176,7 +176,7 @@ def predict_stock(symbol):
     # Ensure sufficient data is in DB for prediction.
     # The LSTM model typically needs a good amount of historical data (e.g., 240-360 days)
     # Check if we have at least 400 days (approx. 13-14 months) for robust prediction.
-    min_prediction_data_days = 400
+    min_prediction_data_days = 250
     db_records_for_pred = data_services.get_stored_stock_data(company_symbol=formatted_symbol, limit=min_prediction_data_days)
 
     if not db_records_for_pred or len(db_records_for_pred) < min_prediction_data_days * 0.9: # If significantly less data
