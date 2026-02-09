@@ -4,7 +4,7 @@ class Config:
     # Flask settings
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'ABC'
     # Using your provided PostgreSQL URI
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://postgres:Pavan%%40017@localhost:5432/db'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://postgres:Pavan017@localhost:5432/db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # --- Configuration for Model Persistence (CRITICAL for prediction speed) ---

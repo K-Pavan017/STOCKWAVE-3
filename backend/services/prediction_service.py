@@ -8,7 +8,9 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 # TensorFlow/Keras Imports
 from keras.models import Sequential, load_model
-from keras.layers import LSTM, Dense, Dropout
+from keras.layers import GRU, Dense, Dropout
+from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.optimizers import Adam, RMSprop
 
 # Placeholder/Original Imports (Ensure these are available in your environment)
 # NOTE: You MUST ensure StockData is accessible or imported for this to run
@@ -61,7 +63,15 @@ def get_data_from_db(symbol, data_limit):
     df['date'] = pd.to_datetime(df['date'])
     return df.dropna()
 
-def prepare_data_multi_feature(df_full, features_to_scale, window_size=60, train_test_split_ratio=0.8, is_training=True):
+def prepare_data_multi_feature(
+    df_full,
+    features_to_scale,
+    window_size=60,
+    train_test_split_ratio=0.8,
+    is_training=True,
+    scaler=None
+):
+
     """
     Prepares and scales data. If not training, it only scales the data
     and returns the required components for prediction.
@@ -70,8 +80,12 @@ def prepare_data_multi_feature(df_full, features_to_scale, window_size=60, train
     df_processed.dropna(inplace=True)
 
     data_to_scale = df_processed[features_to_scale].values
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_data = scaler.fit_transform(data_to_scale)
+    if is_training:
+       scaler = MinMaxScaler(feature_range=(0, 1))
+       scaled_data = scaler.fit_transform(data_to_scale)
+    else:
+        scaled_data = scaler.transform(data_to_scale)
+
 
     if not is_training:
         # If just predicting, return the scaler and the last sequence
@@ -80,11 +94,12 @@ def prepare_data_multi_feature(df_full, features_to_scale, window_size=60, train
 
     # Logic for Training (same as original)
     X, y = [], []
-    close_feature_idx = features_to_scale.index('close')
+    
 
     for i in range(window_size, len(scaled_data)):
         X.append(scaled_data[i - window_size:i])
-        y.append(scaled_data[i, close_feature_idx]) 
+        y.append(df_processed['target'].iloc[i])
+
 
     X = np.array(X)
     y = np.array(y)
@@ -96,40 +111,76 @@ def prepare_data_multi_feature(df_full, features_to_scale, window_size=60, train
     return X_train, y_train, X_test, y_test, scaler, scaled_data, df_processed
 
 def build_model_improved(input_shape):
-    """Defines the LSTM model architecture."""
     model = Sequential([
-        LSTM(128, return_sequences=True, input_shape=input_shape),
-        Dropout(0.3),
-        LSTM(64, return_sequences=False),
-        Dropout(0.3),
-        Dense(1) 
+        GRU(
+            96,
+            return_sequences=True,
+            input_shape=input_shape,
+            reset_after=True
+        ),
+        Dropout(0.25),
+
+        GRU(
+            48,
+            return_sequences=False
+        ),
+        Dropout(0.25),
+
+        Dense(1)
     ])
-    model.compile(optimizer='adam', loss='mean_squared_error')
+
+    optimizer = Adam(
+        learning_rate=0.001,
+        clipnorm=1.0  # stabilizes training
+    )
+
+    model.compile(
+        optimizer=optimizer,
+        loss="mean_squared_error"
+    )
+
     return model
 
-def predict_multiple_steps_multi_feature(model, input_seq, scaler, steps, num_features, close_feature_idx):
-    """Generates sequential predictions."""
-    predictions = []
-    current_input = input_seq.copy() 
+
+def get_training_callbacks(model_path):
+    early_stop = EarlyStopping(
+        monitor="val_loss",
+        patience=8,
+        restore_best_weights=True
+    )
+
+    checkpoint = ModelCheckpoint(
+        model_path,
+        monitor="val_loss",
+        save_best_only=True,
+        verbose=1
+    )
+
+    return [early_stop, checkpoint]
+
+
+def predict_multiple_steps_returns(model, last_input_sequence, df_processed, steps):
+    predicted_returns = []
+    current_input = last_input_sequence.copy()
 
     for _ in range(steps):
-        next_pred_scaled = model.predict(current_input, verbose=0)[0][0]
-        predictions.append(next_pred_scaled)
+        r = model.predict(current_input, verbose=0)[0][0]
+        predicted_returns.append(r)
 
-        # Create the new input row: copy the last row, update the 'close' price with the prediction
-        dummy_next_features = current_input[0, -1, :].copy().reshape(1, 1, num_features)
-        dummy_next_features[0, 0, close_feature_idx] = next_pred_scaled
+        # shift window (features stay same except close implicitly handled)
+        next_row = current_input[0, -1, :].reshape(1, 1, -1)
+        current_input = np.append(current_input[:, 1:, :], next_row, axis=1)
 
-        # Shift the window: remove the oldest and append the newest prediction
-        current_input = np.append(current_input[:, 1:, :], dummy_next_features, axis=1)
+    # convert returns → prices
+    last_close = df_processed['close'].iloc[-1]
+    prices = []
+    price = last_close
 
-    # Inverse Transform
-    dummy_full_predictions_scaled = np.zeros((len(predictions), num_features))
-    dummy_full_predictions_scaled[:, close_feature_idx] = np.array(predictions)
-    predicted_prices_full_features = scaler.inverse_transform(dummy_full_predictions_scaled)
-    predicted_close_prices = predicted_prices_full_features[:, close_feature_idx]
+    for r in predicted_returns:
+        price = price * np.exp(r)
+        prices.append(price)
 
-    return predicted_close_prices
+    return prices
 
 def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
     """
@@ -168,9 +219,9 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
     df.loc[:, 'SMA_10'] = df['close'].rolling(window=10).mean()
     df.loc[:, 'EMA_10'] = df['close'].ewm(span=10, adjust=False).mean()
     df.loc[:, 'Daily_Return'] = df['close'].pct_change()
+    df['target'] = np.log(df['close'] / df['close'].shift(1))
     
     features_to_scale.extend(['SMA_10', 'EMA_10', 'Daily_Return'])
-    close_feature_idx = features_to_scale.index('close')
     num_features = len(features_to_scale)
 
     # 3. Training/Retraining Logic (if model not loaded)
@@ -178,35 +229,47 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
         print(f"[{symbol}] Training new model (or retraining)...")
 
         # Prepare data for training
-        X_train, y_train, X_test, y_test, scaler, scaled_data_full, df_processed = \
-            prepare_data_multi_feature(df, features_to_scale=features_to_scale, window_size=window_size, is_training=True)
-
+        X_train, y_train, X_test, y_test, scaler, scaled_data_full, df_processed, last_input_sequence_data = \
+            prepare_data_multi_feature(
+                df,
+                features_to_scale,
+                window_size,
+                is_training=True,
+                scaler=scaler
+            )
         if len(X_test) == 0:
             return None, "Not enough data to create a test set for evaluation."
 
         # Build and Fit Model
         model = build_model_improved((X_train.shape[1], X_train.shape[2]))
         # Reduced epochs for speed; adjust this number for better accuracy if needed
-        history = model.fit(X_train, y_train, epochs=20, batch_size=16, verbose=1, validation_split=0.1) 
+        callbacks = get_training_callbacks(model_paths['model'])
+
+        history = model.fit(
+            X_train,
+            y_train,
+            epochs=80,              # upper bound
+            batch_size=32,          # faster on CPU
+            validation_split=0.1,
+            callbacks=callbacks,
+            verbose=1
+        )
+    
         
         # --- Evaluation (Only run on training) ---
         test_loss = model.evaluate(X_test, y_test, verbose=0)
         
         test_predictions_scaled = model.predict(X_test, verbose=0)
         dummy_test_predictions_scaled = np.zeros((len(test_predictions_scaled), num_features))
-        dummy_test_predictions_scaled[:, close_feature_idx] = test_predictions_scaled.flatten()
-        test_predictions = scaler.inverse_transform(dummy_test_predictions_scaled)[:, close_feature_idx]
-
-        dummy_actual_test_prices_scaled = np.zeros((len(y_test), num_features))
-        dummy_actual_test_prices_scaled[:, close_feature_idx] = y_test.flatten()
-        actual_test_prices = scaler.inverse_transform(dummy_actual_test_prices_scaled)[:, close_feature_idx]
-
-        rmse = np.sqrt(mean_squared_error(actual_test_prices, test_predictions))
-        r2 = r2_score(actual_test_prices, test_predictions)
-        epsilon = 1e-10
-        mape = np.mean(np.abs((actual_test_prices - test_predictions) / (actual_test_prices + epsilon))) * 100
         
-        print(f"[{symbol}] Training Complete. RMSE: {rmse:.2f}, R-squared: {r2:.2f}, MAPE: {mape:.2f}%")
+        dummy_actual_test_prices_scaled = np.zeros((len(y_test), num_features))
+        
+        rmse = np.sqrt(mean_squared_error(y_test, test_predictions_scaled))
+        print(f"[{symbol}] Return RMSE: {rmse:.6f}")
+
+        r2 = r2_score(y_test, test_predictions_scaled)
+        
+        print(f"[{symbol}] Training Complete. RMSE: {rmse:.2f}, R-squared: {r2:.2f}%")
         # -----------------------------------------
 
         # Save Model and Scaler
@@ -237,8 +300,11 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
 
 
     # 5. Generate Predictions
-    predicted_close_prices = predict_multiple_steps_multi_feature(
-        model, last_input_sequence, scaler, steps, num_features, close_feature_idx
+    predicted_close_prices = predict_multiple_steps_returns(
+        model,
+        last_input_sequence,
+        df_processed,
+        steps
     )
 
     # 6. Format Results (FIXED: Close series defined first)
