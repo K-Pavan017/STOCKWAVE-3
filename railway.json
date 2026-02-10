@@ -1,6 +1,5 @@
 {
   "build": {
-    "builder": "python",
     "source": "backend"
   },
   "deploy": {
