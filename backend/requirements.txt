@@ -7,6 +7,10 @@ python-dotenv==1.0.1
 # --- Database ---
 SQLAlchemy==2.0.29
 psycopg2-binary==2.9.9
+Flask-SQLAlchemy
+alembic
+waitress
+torch
 
 # --- ML / GRU Inference ---
 numpy==1.26.4
