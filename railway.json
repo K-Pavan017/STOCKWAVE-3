@@ -1,0 +1,9 @@
+{
+  "build": {
+    "builder": "python",
+    "source": "backend"
+  },
+  "deploy": {
+    "startCommand": "gunicorn app:app"
+  }
+}
