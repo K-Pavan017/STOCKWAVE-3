@@ -11,7 +11,7 @@ Flask-SQLAlchemy
 alembic
 waitress
 torch
-PyJWT
+PyJWT==2.8.0
 
 # --- ML / GRU Inference ---
 numpy==1.26.4
