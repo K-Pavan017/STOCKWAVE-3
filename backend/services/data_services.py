@@ -287,5 +287,5 @@ def get_company_info(company_symbol, market='US'):
             'beta': info.get('beta')
         }
     except Exception as e:
-        print(f"[GET COMPANY INFO ERROR] {company_symbol}: {e}")
+        print(f"[GET COMPANY INFO ERROR] {company_symbol}: {str(e)}")
         return None
