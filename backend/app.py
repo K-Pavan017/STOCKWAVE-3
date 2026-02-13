@@ -157,7 +157,7 @@ def api_stock_info(symbol):
     info = data_services.get_company_info(symbol)
     if info:
         return jsonify({"success": True, "data": info})
-    return jsonify({"success": False, "message": "Could not retrieve company info."})
+    return jsonify({"success": False, "message": "Could not retrieve company info."}), 200
 
 # NEW: API route for fetching stock statistics (for dashboard preview details)
 @app.route('/api/stock_statistics/<symbol>', methods=['GET'])
