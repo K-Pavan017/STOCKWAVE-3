@@ -7,6 +7,9 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://stockdata_77iq_user:ovyMBXeabZI5nzm3vvDB1wNTmvA3uu6z@dpg-d6rq2q7afjfc73ejgi3g-a/stockdata_77iq'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Alpha Vantage API Key - Replace with your actual key
+    ALPHA_VANTAGE_API_KEY = os.environ.get('ALPHA_VANTAGE_API_KEY', 'RYQX9WB6WNFHXS7Q')
+
     # --- Configuration for Model Persistence (CRITICAL for prediction speed) ---
     # This directory is where the trained models and their scalers will be saved.
     MODEL_STORAGE_DIR = 'trained_models'
