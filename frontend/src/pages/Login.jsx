@@ -91,7 +91,7 @@ if (res.data.success) {
           setBackendError(res.data.message || 'Invalid email or password');
         }
       } catch (err) {
-        console.error('Login request error:', err);
+        // Optionally handle error in UI
         if (err.response && err.response.data && err.response.data.message) {
           setBackendError(err.response.data.message);
         } else {
