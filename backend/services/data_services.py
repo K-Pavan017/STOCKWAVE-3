@@ -16,9 +16,8 @@ def format_symbol(symbol, market='US'):
 def validate_stock_symbol(company_symbol, market='US'):
     try:
         symbol = format_symbol(company_symbol, market)
-        ticker = yf.Ticker(symbol)
-        hist = ticker.history(period='5d')
-        return not hist.empty
+        hist = yf.download(symbol, period="5d", progress=False)
+        return hist is not None and not hist.empty
     except Exception as e:
         print(f"[VALIDATION ERROR] {symbol}: {e}")
         return False
