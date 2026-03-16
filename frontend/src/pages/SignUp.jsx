@@ -110,7 +110,7 @@ const SignUp = () => {
           setBackendError(res.data.message || 'Signup failed');
         }
       } catch (err) {
-        console.error('Signup request error:', err);
+        // Optionally handle error in UI
         setBackendError('Server error. Please try again later.');
       } finally {
         setIsLoading(false);
