@@ -56,7 +56,7 @@ export default function Hero() {
   // Fetch real-time data for ticker and dashboard preview
   useEffect(() => {
     const fetchRealTimeData = async () => {
-      const symbolsToFetch = ["AAPL", "GOOG", "TSLA", "AMZN", "MSFT", "META", "NVDA", "JPM"];
+      const symbolsToFetch = ["AAPL"];
       const fetchedTickerData = [];
       
       for (const s of symbolsToFetch) {
