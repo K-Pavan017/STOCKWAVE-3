@@ -5,22 +5,16 @@ import os
 import time
 from functools import wraps
 from math import ceil
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import Config
-from models import db
+from database import db
 from flask_migrate import Migrate
 from cachetools import TTLCache
-
-import auth_service
-import data_services
-import prediction_service
-
 from waitress import serve
 import logging
 from logging.handlers import RotatingFileHandler
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-
+from services import auth_service, data_services, prediction_service
 
 # ...
 # Initialize SQLAlchemy (db) and Flask-Migrate (migrate)
@@ -31,15 +25,6 @@ CORS(app,
      origins=["https://stockwave-3.vercel.app"], # Replace with your actual URL
      supports_credentials=True) # Enable CORS for all routes
 
-# Initialize SQLAlchemy with the Flask app
-db.init_app(app)
-
-migrate = Migrate(app, db)
-stock_cache = TTLCache(maxsize=200, ttl=300)
-prediction_cache = TTLCache(maxsize=100, ttl=3600)  # Cache predictions for 1 hour
-
-# Simple rate limiting
-request_counts = {}
 # Configure logging
 if not app.debug:
     if not os.path.exists('logs'):
@@ -52,6 +37,16 @@ if not app.debug:
     app.logger.addHandler(file_handler)
     app.logger.setLevel(logging.INFO)
     app.logger.info('StockWave backend startup')
+
+# Initialize SQLAlchemy with the Flask app
+db.init_app(app)
+
+migrate = Migrate(app, db)
+stock_cache = TTLCache(maxsize=200, ttl=300)
+prediction_cache = TTLCache(maxsize=100, ttl=3600)  # Cache predictions for 1 hour
+
+# Simple rate limiting
+request_counts = {}
 
 def rate_limit(max_requests=10, window=60):
     def decorator(f):
