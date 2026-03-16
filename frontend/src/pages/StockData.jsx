@@ -88,7 +88,7 @@ function StockData({ width = 1200, ratio = 1 }) {
         localStorage.setItem('userWatchlist', JSON.stringify(watchlist));
       }
     } catch (e) {
-      console.error("Failed to update watchlist in localStorage", e);
+      // Optionally handle error in UI
     }
   };
 
@@ -104,7 +104,7 @@ function StockData({ width = 1200, ratio = 1 }) {
       }
       localStorage.setItem('userWishlist', JSON.stringify(wishlist));
     } catch (e) {
-      console.error("Failed to update wishlist in localStorage", e);
+      // Optionally handle error in UI
     }
   };
 
@@ -113,7 +113,7 @@ function StockData({ width = 1200, ratio = 1 }) {
       const wishlist = JSON.parse(localStorage.getItem('userWishlist')) || [];
       setIsLiked(wishlist.includes(symbol));
     } catch (e) {
-      console.error("Failed to read wishlist from localStorage", e);
+      // Optionally handle error in UI
       setIsLiked(false);
     }
   }, [symbol]);
@@ -172,8 +172,13 @@ function StockData({ width = 1200, ratio = 1 }) {
       setError("");
       setPrediction(null);
       try {
+        // Determine market (US/IN) based on symbol
+        let stockMarket = 'US';
+        if (symbol.toUpperCase().endsWith('.NS') || symbol.toUpperCase() === 'SBIN') {
+          stockMarket = 'IN';
+        }
         const res = await axios.get(`${backendUrl}/stock/data/${symbol}`, {
-          params: { limit: duration, days: duration },
+          params: { limit: duration, days: duration, market: stockMarket },
         });
         if (res.data.success) {
           const processedRecords = res.data.data.records
@@ -219,9 +224,7 @@ function StockData({ width = 1200, ratio = 1 }) {
     setFetchingData(true);
     setError("");
     let stockMarket = 'US';
-    if (symbol.toUpperCase().endsWith('.NS')) {
-      stockMarket = 'IN';
-    } else if (symbol.toUpperCase() === 'SBIN') {
+    if (symbol.toUpperCase().endsWith('.NS') || symbol.toUpperCase() === 'SBIN') {
       stockMarket = 'IN';
     }
     try {
@@ -247,8 +250,17 @@ function StockData({ width = 1200, ratio = 1 }) {
     setPrediction(null);
     setError("");
     try {
-      const res = await axios.get(`${backendUrl}/stock/predict/${symbol}?horizon=month`);
-
+      // Determine market (US/IN) based on symbol
+      let stockMarket = 'US';
+      if (symbol.toUpperCase().endsWith('.NS') || symbol.toUpperCase() === 'SBIN') {
+        stockMarket = 'IN';
+      }
+      const res = await axios.get(`${backendUrl}/stock/predict/${symbol}`, {
+        params: {
+          horizon: predictHorizon,
+          market: stockMarket,
+        },
+      });
       if (res.data.success) {
         setPrediction(res.data.prediction);
       } else {
@@ -259,6 +271,7 @@ function StockData({ width = 1200, ratio = 1 }) {
     }
     setPredicting(false);
   };
+
 
   const handleChartToggle = () => {
     setChartType(chartType === "candlestick" ? "line" : "candlestick");
@@ -388,7 +401,6 @@ function StockData({ width = 1200, ratio = 1 }) {
                   className="w-full px-4 py-3 rounded-xl bg-gray-700/50 text-white border border-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                   value={predictHorizon}
                   onChange={(e) => setPredictHorizon(e.target.value)}
-                  disabled
                 >
                   {PREDICT_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value} className="bg-gray-800">
