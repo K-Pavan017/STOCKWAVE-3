@@ -275,52 +275,30 @@ def get_company_info(company_symbol, market='US'):
         symbol = format_symbol(company_symbol, market)
         ticker = yf.Ticker(symbol)
 
-        # Use info from ticker.fast_info for common fields
-        fast_info = ticker.fast_info or {}
-        
-        # Fallback to info for more details if fast_info is insufficient
-        info = ticker.info or {} 
+        # Get last two days to compute change
+        hist = ticker.history(period="2d")
 
-        # Current price and day's change from fast_info if available, otherwise fetch explicitly
-        current_price = fast_info.get('lastPrice')
-        previous_close = fast_info.get('previousClose')
+        if hist.empty:
+            return None
 
-        if current_price is None or previous_close is None:
-            # If fast_info doesn't have it, try fetching a small history
-            hist = ticker.history(period="1d", interval="1m") # Fetch 1-minute interval for current day
-            if not hist.empty:
-                current_price = hist['Close'].iloc[-1]
-                # Try to get previous close from 2-day history
-                hist_2d = ticker.history(period="2d", interval="1d")
-                if len(hist_2d) > 1:
-                    previous_close = hist_2d['Close'].iloc[-2] # Second to last closing price
-            else:
-                # As a last resort, use info.currentPrice or info.previousClose
-                current_price = info.get('currentPrice')
-                previous_close = info.get('previousClose')
-        
+        current_price = float(hist["Close"].iloc[-1])
+        previous_close = float(hist["Close"].iloc[-2]) if len(hist) > 1 else None
+
         day_change = None
         day_change_percent = None
-        if current_price is not None and previous_close is not None and previous_close != 0:
+
+        if previous_close:
             day_change = round(current_price - previous_close, 2)
             day_change_percent = round((day_change / previous_close) * 100, 2)
 
         return {
-            'symbol': symbol,
-            'currency': fast_info.get('currency', info.get('currency', 'USD')),
-            'exchange': fast_info.get('exchange', info.get('exchange', 'N/A')),
-            'shortName': fast_info.get('shortName', info.get('shortName', company_symbol)),
-            'longName': info.get('longName', fast_info.get('longName', company_symbol)),
-            'current_price': current_price,
-            'previous_close': previous_close,
-            'day_change': day_change,
-            'day_change_percent': day_change_percent,
-            'market_cap': fast_info.get('marketCap', info.get('marketCap')),
-            'sector': info.get('sector'),
-            'industry': info.get('industry'),
-            'website': info.get('website'),
-            'beta': info.get('beta')
+            "symbol": symbol,
+            "current_price": current_price,
+            "previous_close": previous_close,
+            "day_change": day_change,
+            "day_change_percent": day_change_percent
         }
+
     except Exception as e:
-        print(f"[GET COMPANY INFO ERROR] {company_symbol}: {str(e)}")
+        print(f"[GET COMPANY INFO ERROR] {company_symbol}: {e}")
         return None
