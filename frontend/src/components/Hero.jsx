@@ -75,7 +75,7 @@ export default function Hero() {
               trending: trending,
             });
 
-            // If it's TSLA, also update the dashboard preview
+            // If it's AAPL, also update the dashboard preview
             if (s === "AAPL") {
               // Fetch statistics for open, volume, high as well
               const statsResponse = await axios.get(`${backendUrl}/api/stock_statistics/${s}`);
@@ -95,7 +95,7 @@ export default function Hero() {
             }
           }
         } catch (error) {
-          console.error(`Error fetching data for ${s}:`, error);
+          // Optionally handle error in UI
         }
       }
       setTickerData(fetchedTickerData);
@@ -119,15 +119,20 @@ const handleSearch = async () => {
 
   try {
     // First, fetch and store the stock data
-    console.log(`Fetching data for ${trimmedSymbol}...`);
+
+    // Determine market (US/IN) based on symbol
+    let stockMarket = 'US';
+    if (trimmedSymbol.toUpperCase().endsWith('.NS') || trimmedSymbol.toUpperCase() === 'SBIN') {
+      stockMarket = 'IN';
+    }
 
     const fetchRes = await axios.post(`${backendUrl}/stock/fetch`, {
       symbol: trimmedSymbol,
-      months: 18
+      months: 18,
+      market: stockMarket
     });
 
     if (fetchRes.data.success) {
-      console.log(`Successfully fetched and stored data for ${trimmedSymbol}`);
 
       // Safely get statistics, or default to an empty object if not present
       // This is the key change to prevent the TypeError
@@ -140,6 +145,7 @@ const handleSearch = async () => {
         params: {
           limit: 365,
           days: 365,
+          market: stockMarket,
         }
       });
 
@@ -159,7 +165,7 @@ const handleSearch = async () => {
       alert(fetchRes.data.message || `Failed to fetch data for ${trimmedSymbol}.`);
     }
   } catch (err) {
-    console.error("Error fetching stock data:", err);
+    // Optionally handle error in UI
 
     // More specific error handling
     if (err.response) {
