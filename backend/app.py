@@ -11,18 +11,7 @@ from waitress import serve
 import logging
 from logging.handlers import RotatingFileHandler
 
-# Configure logging
-if not app.debug:
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-    file_handler = RotatingFileHandler('logs/stockwave.log', maxBytes=10240, backupCount=10)
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-    ))
-    file_handler.setLevel(logging.INFO)
-    app.logger.addHandler(file_handler)
-    app.logger.setLevel(logging.INFO)
-    app.logger.info('StockWave backend startup')
+
 
 # ...
 # Initialize SQLAlchemy (db) and Flask-Migrate (migrate)
@@ -42,6 +31,18 @@ prediction_cache = TTLCache(maxsize=100, ttl=3600)  # Cache predictions for 1 ho
 
 # Simple rate limiting
 request_counts = {}
+# Configure logging
+if not app.debug:
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    file_handler = RotatingFileHandler('logs/stockwave.log', maxBytes=10240, backupCount=10)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    file_handler.setLevel(logging.INFO)
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.info('StockWave backend startup')
 
 def rate_limit(max_requests=10, window=60):
     def decorator(f):
