@@ -17,6 +17,8 @@ import pandas as pd
 from math import ceil # Import ceil for calculating months
 # In app.py or equivalent config file
 from flask_migrate import Migrate
+from cachetools import TTLCache
+
 # ...
 # Initialize SQLAlchemy (db) and Flask-Migrate (migrate)
 
@@ -30,6 +32,7 @@ CORS(app,
 db.init_app(app)
 
 migrate = Migrate(app, db)
+stock_cache = TTLCache(maxsize=200, ttl=300)
 
 
 # Create database tables if they don't exist
