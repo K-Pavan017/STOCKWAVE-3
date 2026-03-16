@@ -2,22 +2,8 @@ import { useState, useEffect } from "react";
 import NavBar from '../components/NavBar';
 import Footer from '../components/Footer';
 import { 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  Bell, 
-  Search,
-  Filter, 
-  Calendar, 
-  PieChart, 
-  BarChart3, 
-  LineChart, 
   Zap, 
-  TrendingUp, 
-  ChevronDown, 
-  Users,
   RefreshCw,
-  Check,
-  Plus,
   Sun, // Import Sun for light mode
   Moon, // Import Moon for dark mode
   Heart // Used for wishlist icon
@@ -93,7 +79,7 @@ export default function Dashboard() {
       const storedWishlist = JSON.parse(localStorage.getItem('userWishlist')) || [];
       setWishlistTickers(storedWishlist);
     } catch (e) {
-      console.error("Failed to load tickers from localStorage", e);
+      // Optionally handle error in UI
     }
   }, []);
 
@@ -105,14 +91,14 @@ export default function Dashboard() {
       for (const ticker of watchlistTickers) {
         try {
           // Assuming /api/stock_info gives comprehensive details
-          const response = await axios.get(`${backendUrl}/${ticker}`);
+          const response = await axios.get(`${backendUrl}/api/stock_info/${ticker}`);
           if (response.data.success) {
             fetchedData.push(response.data.data);
           } else {
-            console.error(`Failed to fetch info for ${ticker}: ${response.data.message}`);
+            // Optionally handle error in UI
           }
         } catch (error) {
-          console.error(`Error fetching info for ${ticker}:`, error);
+          // Optionally handle error in UI
         }
       }
       setWatchlistData(fetchedData);
@@ -133,14 +119,14 @@ export default function Dashboard() {
       const fetchedData = [];
       for (const ticker of wishlistTickers) {
         try {
-          const response = await axios.get(`${backendUrl}/${ticker}`);
+          const response = await axios.get(`${backendUrl}/api/stock_info/${ticker}`);
           if (response.data.success) {
             fetchedData.push(response.data.data);
           } else {
-            console.error(`Failed to fetch info for ${ticker}: ${response.data.message}`);
+            // Optionally handle error in UI
           }
         } catch (error) {
-          console.error(`Error fetching info for ${ticker}:`, error);
+          // Optionally handle error in UI
         }
       }
       setWishlistData(fetchedData);
@@ -163,7 +149,57 @@ export default function Dashboard() {
       localStorage.setItem('userWishlist', JSON.stringify(wishlist));
       setWishlistTickers(wishlist); // Update state to trigger re-render
     } catch (e) {
-      console.error("Failed to remove from wishlist in localStorage", e);
+      // Optionally handle error in UI
+    }
+  };
+
+  // Refresh watchlist data
+  const refreshWatchlist = () => {
+    if (watchlistTickers.length > 0) {
+      const fetchWatchlistDetails = async () => {
+        setLoadingWatchlist(true);
+        const fetchedData = [];
+        for (const ticker of watchlistTickers) {
+          try {
+            const response = await axios.get(`${backendUrl}/api/stock_info/${ticker}`);
+            if (response.data.success) {
+              fetchedData.push(response.data.data);
+            } else {
+              // Optionally handle error in UI
+            }
+          } catch (error) {
+            // Optionally handle error in UI
+          }
+        }
+        setWatchlistData(fetchedData);
+        setLoadingWatchlist(false);
+      };
+      fetchWatchlistDetails();
+    }
+  };
+
+  // Refresh wishlist data
+  const refreshWishlist = () => {
+    if (wishlistTickers.length > 0) {
+      const fetchWishlistDetails = async () => {
+        setLoadingWishlist(true);
+        const fetchedData = [];
+        for (const ticker of wishlistTickers) {
+          try {
+            const response = await axios.get(`${backendUrl}/api/stock_info/${ticker}`);
+            if (response.data.success) {
+              fetchedData.push(response.data.data);
+            } else {
+              // Optionally handle error in UI
+            }
+          } catch (error) {
+            // Optionally handle error in UI
+          }
+        }
+        setWishlistData(fetchedData);
+        setLoadingWishlist(false);
+      };
+      fetchWishlistDetails();
     }
   };
 
@@ -209,7 +245,7 @@ export default function Dashboard() {
                           <RefreshCw 
                               size={20} 
                               className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} cursor-pointer hover:text-blue-500 transition-colors duration-200`} 
-                              onClick={() => { /* re-fetch watchlist data */ }} // Implement re-fetch logic
+                              onClick={refreshWatchlist}
                           />
                       </div>
                       {loadingWatchlist ? (
@@ -264,7 +300,7 @@ export default function Dashboard() {
                           <RefreshCw 
                               size={20} 
                               className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} cursor-pointer hover:text-blue-500 transition-colors duration-200`} 
-                              onClick={() => { /* re-fetch wishlist data */ }} // Implement re-fetch logic
+                              onClick={refreshWishlist}
                           />
                       </div>
                       {loadingWishlist ? (
