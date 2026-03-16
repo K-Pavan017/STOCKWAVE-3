@@ -26,23 +26,33 @@ def validate_stock_symbol(company_symbol, market='US'):
 def get_historical_data(company_symbol, months=None, days=None, period_type='months', market='US'):
     try:
         symbol = format_symbol(company_symbol, market)
-        ticker = yf.Ticker(symbol)
 
-        period_str = "1mo" # Default period
-        if period_type == 'days' and days is not None:
-            period_str = f"{max(days, 5)}d" 
+        period_str = "1mo"
+
+        if period_type == "days" and days is not None:
+            period_str = f"{max(days,5)}d"
         elif months is not None:
             period_str = f"{months}mo"
-        
-        hist = ticker.history(period=period_str, interval="1d") 
 
-        if hist.empty:
-            print(f"[YFINANCE] No historical data found for {symbol} for period {period_str}.")
+        # MUCH more reliable on servers
+        hist = yf.download(
+            symbol,
+            period=period_str,
+            interval="1d",
+            progress=False,
+            threads=False
+        )
+
+        if hist is None or hist.empty:
+            print(f"[YFINANCE] Empty dataframe for {symbol}")
             return None
+
         return hist
+
     except Exception as e:
         print(f"[YFINANCE ERROR] {symbol}: {e}")
         return None
+
 
 def get_stored_stock_data(company_symbol, start_date=None, end_date=None, limit=None):
     try:
