@@ -1,9 +1,10 @@
-import yfinance as yf
+import requests
 from models.stock_data import StockData
 from database import db
 from datetime import datetime, timedelta
 import pandas as pd
 from math import ceil
+from config import Config
 
 # --- Symbol Formatting ---
 def format_symbol(symbol, market='US'):
@@ -16,41 +17,64 @@ def format_symbol(symbol, market='US'):
 def validate_stock_symbol(company_symbol, market='US'):
     try:
         symbol = format_symbol(company_symbol, market)
-        hist = yf.download(symbol, period="5d", progress=False)
-        return hist is not None and not hist.empty
+        url = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={symbol}&apikey={Config.ALPHA_VANTAGE_API_KEY}"
+        response = requests.get(url)
+        data = response.json()
+        return 'bestMatches' in data and len(data['bestMatches']) > 0
     except Exception as e:
         print(f"[VALIDATION ERROR] {symbol}: {e}")
         return False
-
 
 def get_historical_data(company_symbol, months=None, days=None, period_type='months', market='US'):
     try:
         symbol = format_symbol(company_symbol, market)
 
-        period_str = "1mo"
+        # Alpha Vantage provides daily data
+        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=full&apikey={Config.ALPHA_VANTAGE_API_KEY}"
+        response = requests.get(url)
 
-        if period_type == "days" and days is not None:
-            period_str = f"{max(days,5)}d"
-        elif months is not None:
-            period_str = f"{months}mo"
-
-        # MUCH more reliable on servers
-        hist = yf.download(
-            symbol,
-            period=period_str,
-            interval="1d",
-            progress=False,
-            threads=False
-        )
-
-        if hist is None or hist.empty:
-            print(f"[YFINANCE] Empty dataframe for {symbol}")
+        if response.status_code != 200:
+            print(f"[ALPHA VANTAGE] API Error: {response.status_code}")
             return None
 
-        return hist
+        data = response.json()
+
+        if 'Time Series (Daily)' not in data:
+            print(f"[ALPHA VANTAGE] No data found for {symbol}")
+            return None
+
+        time_series = data['Time Series (Daily)']
+
+        # Convert to DataFrame
+        df_data = []
+        for date_str, values in time_series.items():
+            df_data.append({
+                'Date': date_str,
+                'Open': float(values['1. open']),
+                'High': float(values['2. high']),
+                'Low': float(values['3. low']),
+                'Close': float(values['4. close']),
+                'Volume': int(values['5. volume'])
+            })
+
+        df = pd.DataFrame(df_data)
+        df['Date'] = pd.to_datetime(df['Date'])
+        df = df.sort_values('Date').reset_index(drop=True)
+
+        # Filter by date range if specified
+        if months is not None:
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=months * 30)
+            df = df[df['Date'] >= start_date]
+        elif days is not None:
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=days)
+            df = df[df['Date'] >= start_date]
+
+        return df
 
     except Exception as e:
-        print(f"[YFINANCE ERROR] {symbol}: {e}")
+        print(f"[ALPHA VANTAGE ERROR] {symbol}: {e}")
         return None
 
 
@@ -82,10 +106,10 @@ def fetch_and_store_stock(company_symbol, months=18, market='US'):
         df = get_historical_data(company_symbol, months=months, period_type='months', market=market)
 
         if df is None or df.empty:
-            return False, f"No data found for {symbol} from yfinance."
+            return False, f"No data found for {symbol} from Alpha Vantage."
 
         # Convert dataframe index to date list
-        dates = [idx.date() for idx in df.index]
+        dates = [date.date() for date in df['Date']]
 
         # 🔹 Fetch existing records in ONE query
         existing_records = StockData.query.filter(
@@ -100,7 +124,7 @@ def fetch_and_store_stock(company_symbol, months=18, market='US'):
         updated_count = 0
 
         for index, row in df.iterrows():
-            date = index.date()
+            date = row['Date'].date()
 
             if date in existing_map:
                 # Update existing record
@@ -169,27 +193,27 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
             records_to_process = db_records_chronological
             source_tag = "DB"
         else:
-            # 2. If no recent records in DB, fetch live historical data from yfinance for the period
-            print(f"[NO DB DATA FOR STATS] Fetching live historical data for {symbol} for {days} days from YFinance.")
+            # 2. If no recent records in DB, fetch live historical data from Alpha Vantage for the period
+            print(f"[NO DB DATA FOR STATS] Fetching live historical data for {symbol} for {days} days from Alpha Vantage.")
             
-            yfinance_df = get_historical_data(company_symbol, days=days, period_type='days', market=market)
+            alphavantage_df = get_historical_data(company_symbol, days=days, period_type='days', market=market)
             
-            if yfinance_df is not None and not yfinance_df.empty:
+            if alphavantage_df is not None and not alphavantage_df.empty:
                 # Convert DataFrame rows to a list of dicts that our stat calculation can use
-                for index, row in yfinance_df.iterrows():
+                for index, row in alphavantage_df.iterrows():
                     records_to_process.append({
-                        'date': index.date(), # Convert timestamp to date object
+                        'date': row['Date'].date(), # Convert timestamp to date object
                         'open_price': row['Open'],
                         'close_price': row['Close'],
                         'high_price': row['High'],
                         'low_price': row['Low'],
                         'volume': row['Volume']
                     })
-                # Ensure chronological order for yfinance data if not already (DataFrame index usually is)
+                # Ensure chronological order for alphavantage data if not already (DataFrame is sorted)
                 records_to_process = sorted(records_to_process, key=lambda r: r['date'])
-                source_tag = "YFINANCE_LIVE"
+                source_tag = "ALPHA_VANTAGE_LIVE"
             else:
-                print(f"[NO DATA FOR STATS] No historical data found for {symbol} from DB or YFinance for last {days} days.")
+                print(f"[NO DATA FOR STATS] No historical data found for {symbol} from DB or Alpha Vantage for last {days} days.")
                 return None # Still no data, return None
 
         if not records_to_process:
@@ -270,8 +294,6 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
         return None
 
 # --- Get Company Info (basic) ---
-import yfinance as yf
-
 def get_company_info(company_symbol, market='US'):
 
     # Check cache first
@@ -280,29 +302,32 @@ def get_company_info(company_symbol, market='US'):
 
     try:
         symbol = format_symbol(company_symbol, market)
-        ticker = yf.Ticker(symbol)
+        # Get quote for current price
+        url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={Config.ALPHA_VANTAGE_API_KEY}"
+        response = requests.get(url)
 
-        hist = ticker.history(period="2d")
-
-        if hist.empty:
+        if response.status_code != 200:
             return None
 
-        current_price = float(hist["Close"].iloc[-1])
-        previous_close = float(hist["Close"].iloc[-2]) if len(hist) > 1 else None
+        data = response.json()
 
-        day_change = None
-        day_change_percent = None
+        if 'Global Quote' not in data:
+            return None
 
-        if previous_close:
-            day_change = round(current_price - previous_close, 2)
-            day_change_percent = round((day_change / previous_close) * 100, 2)
+        quote = data['Global Quote']
+
+        current_price = float(quote.get('05. price', 0))
+        previous_close = float(quote.get('08. previous close', 0))
+
+        day_change = current_price - previous_close if current_price and previous_close else None
+        day_change_percent = (day_change / previous_close) * 100 if day_change and previous_close else None
 
         data = {
             "symbol": symbol,
             "current_price": current_price,
             "previous_close": previous_close,
-            "day_change": day_change,
-            "day_change_percent": day_change_percent
+            "day_change": round(day_change, 2) if day_change else None,
+            "day_change_percent": round(day_change_percent, 2) if day_change_percent else None
         }
 
         # store in cache
