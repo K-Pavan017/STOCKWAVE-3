@@ -270,12 +270,18 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
         return None
 
 # --- Get Company Info (basic) ---
+import yfinance as yf
+
 def get_company_info(company_symbol, market='US'):
+
+    # Check cache first
+    if company_symbol in stock_cache:
+        return stock_cache[company_symbol]
+
     try:
         symbol = format_symbol(company_symbol, market)
         ticker = yf.Ticker(symbol)
 
-        # Get last two days to compute change
         hist = ticker.history(period="2d")
 
         if hist.empty:
@@ -291,13 +297,18 @@ def get_company_info(company_symbol, market='US'):
             day_change = round(current_price - previous_close, 2)
             day_change_percent = round((day_change / previous_close) * 100, 2)
 
-        return {
+        data = {
             "symbol": symbol,
             "current_price": current_price,
             "previous_close": previous_close,
             "day_change": day_change,
             "day_change_percent": day_change_percent
         }
+
+        # store in cache
+        stock_cache[company_symbol] = data
+
+        return data
 
     except Exception as e:
         print(f"[GET COMPANY INFO ERROR] {company_symbol}: {e}")
