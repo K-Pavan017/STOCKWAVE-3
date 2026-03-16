@@ -16,7 +16,7 @@ export default function Hero() {
   
   // State for the dashboard preview stock data
   const [dashboardPreviewStock, setDashboardPreviewStock] = useState({
-    symbol: "TSLA",
+    symbol: "AAPL",
     price: "$0.00",
     change: "+0.0%",
     trending: "up",
@@ -76,7 +76,7 @@ export default function Hero() {
             });
 
             // If it's TSLA, also update the dashboard preview
-            if (s === "TSLA") {
+            if (s === "AAPL") {
               // Fetch statistics for open, volume, high as well
               const statsResponse = await axios.get(`${backendUrl}/api/stock_statistics/${s}`);
               if (statsResponse.data.success) {
