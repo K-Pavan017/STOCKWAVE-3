@@ -2,22 +2,27 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sys
 import os
+import time
+from functools import wraps
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import Config
 from waitress import serve
-import jwt 
-import os
-from database import db # Assuming database.py only exports 'db' (SQLAlchemy instance)
-from models.stock_data import StockData # Ensure this is imported for db.create_all
-from services import auth_service, data_services, prediction_service # Assuming these service modules exist
+import logging
+from logging.handlers import RotatingFileHandler
 
-from datetime import datetime, timedelta
-import pandas as pd
-from math import ceil # Import ceil for calculating months
-# In app.py or equivalent config file
-from flask_migrate import Migrate
-from cachetools import TTLCache
+# Configure logging
+if not app.debug:
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    file_handler = RotatingFileHandler('logs/stockwave.log', maxBytes=10240, backupCount=10)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    file_handler.setLevel(logging.INFO)
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.info('StockWave backend startup')
 
 # ...
 # Initialize SQLAlchemy (db) and Flask-Migrate (migrate)
@@ -33,6 +38,31 @@ db.init_app(app)
 
 migrate = Migrate(app, db)
 stock_cache = TTLCache(maxsize=200, ttl=300)
+prediction_cache = TTLCache(maxsize=100, ttl=3600)  # Cache predictions for 1 hour
+
+# Simple rate limiting
+request_counts = {}
+
+def rate_limit(max_requests=10, window=60):
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            client_ip = request.remote_addr
+            current_time = time.time()
+            
+            if client_ip not in request_counts:
+                request_counts[client_ip] = []
+            
+            # Clean old requests
+            request_counts[client_ip] = [t for t in request_counts[client_ip] if current_time - t < window]
+            
+            if len(request_counts[client_ip]) >= max_requests:
+                return jsonify({'success': False, 'message': 'Rate limit exceeded'}), 429
+            
+            request_counts[client_ip].append(current_time)
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
 
 
 # Create database tables if they don't exist
@@ -70,15 +100,24 @@ def login():
     return auth_service.login_user(email, password)
 
 @app.route('/stock/fetch', methods=['POST'])
+@rate_limit(max_requests=10, window=60)  # 10 requests per minute for data fetching
 def fetch_and_store_stock_route():
     data = request.get_json()
-    print(f"--- app.py: Received fetch request with data: {data} ---")
+    if not data:
+        return jsonify({'success': False, 'message': 'No JSON data provided'}), 400
+        
+    # Debug log removed for production
     symbol = data.get('symbol')
     months = data.get('months')
-    market = data.get('market')
+    market = data.get('market', 'US')
 
-    if not symbol or not months:
-        return jsonify({'success': False, 'message': 'Missing symbol or months'}), 400
+    # Input validation
+    if not symbol or len(symbol) > 10 or not symbol.replace('.', '').replace('-', '').isalnum():
+        return jsonify({'success': False, 'message': 'Invalid stock symbol'}), 400
+    if not months or not isinstance(months, int) or months < 1 or months > 60:
+        return jsonify({'success': False, 'message': 'Invalid months parameter (1-60)'}), 400
+    if market not in ['US', 'IN']:
+        return jsonify({'success': False, 'message': 'Invalid market. Must be US or IN'}), 400
 
     try:
         # Call the orchestrator function from data_services
@@ -95,7 +134,7 @@ def fetch_and_store_stock_route():
         else:
             return jsonify({'success': False, 'message': message}), 500
     except Exception as e:
-        print(f"--- app.py: Unhandled Error fetching/storing stock data for {symbol}: {e} ---")
+        # Debug log removed for production
         return jsonify({'success': False, 'message': f'Server error during data fetch: {str(e)}'}), 500
 
 @app.route('/stock/data/<symbol>', methods=['GET'])
@@ -115,18 +154,15 @@ def get_stock_data(symbol):
     # 2. If DB data is insufficient, fetch from YFinance and store
     # Consider "insufficient" if we have significantly less data than requested by 'limit'
     if not records or len(records) < limit * 0.9:
-        print(f"[GET_STOCK_DATA] Insufficient DB records for {formatted_symbol} ({len(records)}/{limit}). Attempting to fetch and store.")
-        # Fetch enough data to cover the requested 'days' (duration) for the chart, plus some buffer.
-        # Convert days to months for fetch_and_store_stock if 'days' is substantial.
+        # Debug log removed for production
         months_to_fetch = ceil(days / 30) + 1 if days > 0 else 1 # Fetch at least 1 month, or enough for 'days' + buffer
         success, message = data_services.fetch_and_store_stock(formatted_symbol, months=months_to_fetch, market=market)
         if success:
-            print(f"[GET_STOCK_DATA] Successfully fetched and stored new data for {formatted_symbol}.")
-            # Re-fetch from DB after storing
+            # Debug log removed for production
             records = data_services.get_stored_stock_data(company_symbol=formatted_symbol, limit=limit)
             records = sorted(records, key=lambda r: r.date)
         else:
-            print(f"[GET_STOCK_DATA_ERROR] Failed to fetch and store data: {message}")
+            # Debug log removed for production
             return jsonify({'success': False, 'message': f"Failed to get historical data for {symbol}: {message}"}), 500 # Return 500 if fetch failed
 
     if not records: # After attempting to fetch and store, if still no records
@@ -171,11 +207,29 @@ def api_stock_statistics(symbol):
     return jsonify({"success": False, "message": "Could not retrieve stock statistics."}), 404
 
 @app.route('/stock/predict/<symbol>', methods=['GET'])
+@rate_limit(max_requests=5, window=300)  # 5 requests per 5 minutes for predictions
 def predict_stock(symbol):
+    # Input validation
+    if not symbol or len(symbol) > 10 or not symbol.replace('.', '').replace('-', '').isalnum():
+        return jsonify({'success': False, 'message': 'Invalid stock symbol'}), 400
+        
     horizon = request.args.get('horizon', 'month') # Default to 'month' for 30-day prediction
+    if horizon not in ['day', 'week', 'month', '3month']:
+        return jsonify({'success': False, 'message': 'Invalid horizon. Must be day, week, month, or 3month'}), 400
+        
     market = request.args.get('market', 'US')
+    if market not in ['US', 'IN']:
+        return jsonify({'success': False, 'message': 'Invalid market. Must be US or IN'}), 400
     formatted_symbol = data_services.format_symbol(symbol, market)
-
+    
+    # Create cache key
+    cache_key = f"{formatted_symbol}_{horizon}"
+    
+    # Check cache first
+    if cache_key in prediction_cache:
+        # Debug log removed for production
+        return jsonify({"success": True, "prediction": prediction_cache[cache_key]})
+    
     # Ensure sufficient data is in DB for prediction.
     # The LSTM model typically needs a good amount of historical data (e.g., 240-360 days)
     # Check if we have at least 400 days (approx. 13-14 months) for robust prediction.
@@ -183,22 +237,23 @@ def predict_stock(symbol):
     db_records_for_pred = data_services.get_stored_stock_data(company_symbol=formatted_symbol, limit=min_prediction_data_days)
 
     if not db_records_for_pred or len(db_records_for_pred) < min_prediction_data_days * 0.9: # If significantly less data
-        print(f"[PREDICT_PREP] Insufficient DB data ({len(db_records_for_pred)} records) for prediction for {formatted_symbol}. Attempting to fetch and store ~18 months.")
-        # Fetching ~18 months should generally provide enough data for prediction's lookback_days (e.g., 240+120=360 days)
+        # Debug log removed for production
         success, fetch_message = data_services.fetch_and_store_stock(formatted_symbol, months=18, market=market)
         if not success:
             return jsonify({'success': False, 'message': f"Prediction failed due to insufficient historical data: {fetch_message}"}), 500
-        print(f"[PREDICT_PREP] Successfully fetched and stored additional data for {formatted_symbol}.")
+        # Debug log removed for production
         # No need to re-fetch db_records_for_pred here, as prediction_service.lstm_predict_multiple
         # will internally call get_data_from_db which will get the newly stored data.
 
     predictions_data, error_message = prediction_service.lstm_predict_multiple(formatted_symbol, horizon=horizon)
 
     if error_message:
-        print(f"Prediction Error for {formatted_symbol}: {error_message}")
+        # Debug log removed for production
         return jsonify({"success": False, "message": error_message}), 400
 
     if predictions_data:
+        # Cache the prediction
+        prediction_cache[cache_key] = predictions_data
         return jsonify({"success": True, "prediction": predictions_data})
 
     return jsonify({"success": False, "message": "Prediction could not be generated."}), 500
