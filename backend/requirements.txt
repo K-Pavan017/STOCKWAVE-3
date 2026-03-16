@@ -1,7 +1,6 @@
 # --- Core Backend ---
 Flask==3.1.2
 Flask-Cors==4.0.0
-cachetools
 gunicorn==21.2.0
 python-dotenv==1.0.1
 keras==2.15.0
@@ -43,6 +42,6 @@ pandas==2.2.3
 scikit-learn==1.4.2
 tensorflow-cpu==2.15.0
 
-# --- Optional (only if you actually use it in backend) ---
-yfinance==0.2.40
-requests==2.32.3
+# --- Caching ---
+redis==5.0.1
+Flask-Caching==2.1.0
