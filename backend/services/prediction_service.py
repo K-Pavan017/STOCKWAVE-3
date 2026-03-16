@@ -16,6 +16,29 @@ from keras.optimizers import Adam, RMSprop
 # NOTE: You MUST ensure StockData is accessible or imported for this to run
 from models.stock_data import StockData
 
+# --- Technical Indicators ---
+def calculate_rsi(prices, period=14):
+    delta = prices.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+def calculate_macd(prices, fast=12, slow=26, signal=9):
+    ema_fast = prices.ewm(span=fast, adjust=False).mean()
+    ema_slow = prices.ewm(span=slow, adjust=False).mean()
+    macd = ema_fast - ema_slow
+    macd_signal = macd.ewm(span=signal, adjust=False).mean()
+    return macd, macd_signal
+
+def calculate_bollinger_bands(prices, period=20, std_dev=2):
+    sma = prices.rolling(window=period).mean()
+    std = prices.rolling(window=period).std()
+    upper_band = sma + (std * std_dev)
+    lower_band = sma - (std * std_dev)
+    return upper_band, lower_band
+
 # --- Configuration for Model Persistence ---
 # Define a directory to save trained models and scalers.
 # Ensure this directory exists in your environment.
@@ -111,42 +134,43 @@ def prepare_data_multi_feature(
     return X_train, y_train, X_test, y_test, scaler, scaled_data, df_processed
 
 def build_model_improved(input_shape):
+    from keras.layers import LSTM, Bidirectional, BatchNormalization
+    
     model = Sequential([
-        GRU(
-            96,
-            return_sequences=True,
-            input_shape=input_shape,
-            reset_after=True
-        ),
-        Dropout(0.25),
-
-        GRU(
-            48,
-            return_sequences=False
-        ),
-        Dropout(0.25),
-
+        Bidirectional(LSTM(128, return_sequences=True, input_shape=input_shape)),
+        BatchNormalization(),
+        Dropout(0.3),
+        
+        Bidirectional(LSTM(64, return_sequences=True)),
+        BatchNormalization(),
+        Dropout(0.3),
+        
+        LSTM(32, return_sequences=False),
+        Dropout(0.3),
+        
+        Dense(16, activation='relu'),
         Dense(1)
     ])
 
-    optimizer = Adam(
-        learning_rate=0.001,
-        clipnorm=1.0  # stabilizes training
-    )
-
+    optimizer = Adam(learning_rate=0.0005, clipnorm=1.0)
+    
     model.compile(
         optimizer=optimizer,
-        loss="mean_squared_error"
+        loss="huber_loss",  # More robust to outliers than MSE
+        metrics=['mae']
     )
 
     return model
 
 
 def get_training_callbacks(model_path):
+    from keras.callbacks import ReduceLROnPlateau
+    
     early_stop = EarlyStopping(
         monitor="val_loss",
-        patience=8,
-        restore_best_weights=True
+        patience=10,
+        restore_best_weights=True,
+        min_delta=0.0001
     )
 
     checkpoint = ModelCheckpoint(
@@ -155,8 +179,16 @@ def get_training_callbacks(model_path):
         save_best_only=True,
         verbose=1
     )
+    
+    reduce_lr = ReduceLROnPlateau(
+        monitor='val_loss',
+        factor=0.5,
+        patience=5,
+        min_lr=0.00001,
+        verbose=1
+    )
 
-    return [early_stop, checkpoint]
+    return [early_stop, checkpoint, reduce_lr]
 
 
 def predict_multiple_steps_returns(model, last_input_sequence, df_processed, steps):
@@ -217,11 +249,19 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
     
     # Calculate Features (MUST RUN every time to get latest indicators)
     df.loc[:, 'SMA_10'] = df['close'].rolling(window=10).mean()
+    df.loc[:, 'SMA_20'] = df['close'].rolling(window=20).mean()
     df.loc[:, 'EMA_10'] = df['close'].ewm(span=10, adjust=False).mean()
+    df.loc[:, 'EMA_20'] = df['close'].ewm(span=20, adjust=False).mean()
     df.loc[:, 'Daily_Return'] = df['close'].pct_change()
+    df.loc[:, 'Volatility_10'] = df['Daily_Return'].rolling(window=10).std()
+    df.loc[:, 'RSI'] = calculate_rsi(df['close'])
+    df.loc[:, 'MACD'], df.loc[:, 'MACD_Signal'] = calculate_macd(df['close'])
+    df.loc[:, 'BB_Upper'], df.loc[:, 'BB_Lower'] = calculate_bollinger_bands(df['close'])
+    
     df['target'] = np.log(df['close'] / df['close'].shift(1))
     
-    features_to_scale.extend(['SMA_10', 'EMA_10', 'Daily_Return'])
+    features_to_scale.extend(['SMA_10', 'SMA_20', 'EMA_10', 'EMA_20', 'Daily_Return', 
+                             'Volatility_10', 'RSI', 'MACD', 'MACD_Signal', 'BB_Upper', 'BB_Lower'])
     num_features = len(features_to_scale)
 
     # 3. Training/Retraining Logic (if model not loaded)
@@ -242,15 +282,14 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
 
         # Build and Fit Model
         model = build_model_improved((X_train.shape[1], X_train.shape[2]))
-        # Reduced epochs for speed; adjust this number for better accuracy if needed
         callbacks = get_training_callbacks(model_paths['model'])
 
         history = model.fit(
             X_train,
             y_train,
-            epochs=80,              # upper bound
-            batch_size=32,          # faster on CPU
-            validation_split=0.1,
+            epochs=150,  # Increased for better training
+            batch_size=16,  # Smaller batch size for better generalization
+            validation_split=0.2,  # More validation data
             callbacks=callbacks,
             verbose=1
         )
