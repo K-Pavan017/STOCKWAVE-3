@@ -68,48 +68,74 @@ def get_stored_stock_data(company_symbol, start_date=None, end_date=None, limit=
 
 def fetch_and_store_stock(company_symbol, months=18, market='US'):
     symbol = format_symbol(company_symbol, market)
+
     try:
         df = get_historical_data(company_symbol, months=months, period_type='months', market=market)
+
         if df is None or df.empty:
             return False, f"No data found for {symbol} from yfinance."
 
-        StockData.query.filter_by(company_symbol=symbol).delete()
-        db.session.commit()
-        print(f"[DB CLEANUP] Deleted existing records for {symbol}.")
+        # Convert dataframe index to date list
+        dates = [idx.date() for idx in df.index]
 
+        # 🔹 Fetch existing records in ONE query
+        existing_records = StockData.query.filter(
+            StockData.company_symbol == symbol,
+            StockData.date.in_(dates)
+        ).all()
+
+        # 🔹 Map existing records by date
+        existing_map = {record.date: record for record in existing_records}
+
+        new_records = []
+        updated_count = 0
 
         for index, row in df.iterrows():
-            date = index.date() # Convert pandas timestamp to Python date
-            
-            # Check if record for this date already exists to avoid duplicates
-            existing_record = StockData.query.filter_by(company_symbol=symbol, date=date).first()
-            if existing_record:
+            date = index.date()
+
+            if date in existing_map:
                 # Update existing record
-                existing_record.open_price = row['Open']
-                existing_record.high_price = row['High']
-                existing_record.low_price = row['Low']
-                existing_record.close_price = row['Close']
-                existing_record.volume = row['Volume']
+                record = existing_map[date]
+
+                record.open_price = float(row['Open'])
+                record.high_price = float(row['High'])
+                record.low_price = float(row['Low'])
+                record.close_price = float(row['Close'])
+                record.volume = int(row['Volume'])
+                record.updated_at = datetime.utcnow()
+
+                updated_count += 1
+
             else:
-                # Add new record
-                stock_data = StockData(
-                    company_symbol=symbol,
-                    date=date,
-                     open_price=float(row['Open']),
-                    high_price=float(row['High']),
-                    low_price=float(row['Low']),
-                    close_price=float(row['Close']),
-                    volume=int(row['Volume']),
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow()
+                # Create new record
+                new_records.append(
+                    StockData(
+                        company_symbol=symbol,
+                        date=date,
+                        open_price=float(row['Open']),
+                        high_price=float(row['High']),
+                        low_price=float(row['Low']),
+                        close_price=float(row['Close']),
+                        volume=int(row['Volume']),
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow()
+                    )
                 )
-                db.session.add(stock_data)
-        
+
+        # 🔹 Bulk insert new records
+        if new_records:
+            db.session.bulk_save_objects(new_records)
+
         db.session.commit()
-        print(f"[DB WRITE] Successfully fetched and stored {len(df)} records for {symbol}.")
-        return True, f"Successfully fetched and stored data for {symbol}."
+
+        print(
+            f"[DB WRITE] {symbol}: {len(new_records)} inserted, {updated_count} updated"
+        )
+
+        return True, f"Stored {len(new_records)} new records and updated {updated_count} for {symbol}"
+
     except Exception as e:
-        db.session.rollback() 
+        db.session.rollback()
         print(f"[STORAGE ERROR] {symbol}: {e}")
         return False, f"Failed to fetch and store data for {symbol}: {e}"
 
