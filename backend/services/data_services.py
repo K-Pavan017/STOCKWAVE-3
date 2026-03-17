@@ -297,12 +297,13 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
 stock_cache = {}
 def get_company_info(company_symbol, market='US'):
 
+    symbol = format_symbol(company_symbol, market)
+
     # Check cache first
     if company_symbol in stock_cache:
         return stock_cache[company_symbol]
 
     try:
-        symbol = format_symbol(company_symbol, market)
         # Get quote for current price
         url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={Config.ALPHA_VANTAGE_API_KEY}"
         response = requests.get(url)
