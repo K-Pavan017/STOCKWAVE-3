@@ -294,6 +294,7 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
         return None
 
 # --- Get Company Info (basic) ---
+stock_cache = {}
 def get_company_info(company_symbol, market='US'):
 
     # Check cache first
