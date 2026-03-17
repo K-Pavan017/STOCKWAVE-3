@@ -18,7 +18,7 @@ def validate_stock_symbol(company_symbol, market='US'):
     try:
         symbol = format_symbol(company_symbol, market)
         url = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={symbol}&apikey={Config.ALPHA_VANTAGE_API_KEY}"
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         data = response.json()
         return 'bestMatches' in data and len(data['bestMatches']) > 0
     except Exception as e:
