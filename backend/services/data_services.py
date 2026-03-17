@@ -313,7 +313,16 @@ def get_company_info(company_symbol, market='US'):
 
         data = response.json()
 
-        if 'Global Quote' not in data:
+        if "Note" in data:
+            print("Alpha Vantage rate limit hit:", data)
+            return None
+
+        if "Error Message" in data:
+            print("Alpha Vantage error:", data)
+            return None
+        
+        if "Global Quote" not in data:
+            print("Unexpected API response:", data)
             return None
 
         quote = data['Global Quote']
@@ -322,7 +331,7 @@ def get_company_info(company_symbol, market='US'):
         previous_close = float(quote.get('08. previous close', 0))
 
         day_change = current_price - previous_close if current_price and previous_close else None
-        day_change_percent = (day_change / previous_close) * 100 if day_change and previous_close else None
+        day_change_percent = (day_change / previous_close) * 100 if previous_close else None
 
         data = {
             "symbol": symbol,
