@@ -31,7 +31,7 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
 
         # Alpha Vantage provides daily data
         url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=full&apikey={Config.ALPHA_VANTAGE_API_KEY}"
-        response = requests.get(url,, timeout=10)
+        response = requests.get(url, timeout=10)
 
         if response.status_code != 200:
             print(f"[ALPHA VANTAGE] API Error: {response.status_code}")
