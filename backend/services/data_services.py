@@ -39,8 +39,17 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
 
         data = response.json()
 
-        if 'Time Series (Daily)' not in data:
-            print(f"[ALPHA VANTAGE] No data found for {symbol}")
+        # Handle Alpha Vantage limits/errors
+        if "Note" in data:
+            print(f"[ALPHA VANTAGE RATE LIMIT] {data}")
+            return None
+        
+        if "Error Message" in data:
+            print(f"[ALPHA VANTAGE ERROR] {data}")
+            return None
+        
+        if "Time Series (Daily)" not in data:
+            print(f"[ALPHA VANTAGE] Unexpected response for {symbol}: {data}")
             return None
 
         time_series = data['Time Series (Daily)']
