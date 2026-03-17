@@ -300,13 +300,12 @@ def get_company_info(company_symbol, market='US'):
     symbol = format_symbol(company_symbol, market)
 
     # Check cache first
-    if company_symbol in stock_cache:
-        return stock_cache[company_symbol]
+    if symbol in stock_cache:
+        return stock_cache[symbol]
 
     try:
-        # Get quote for current price
         url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={Config.ALPHA_VANTAGE_API_KEY}"
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
 
         if response.status_code != 200:
             return None
@@ -321,31 +320,31 @@ def get_company_info(company_symbol, market='US'):
             print("Alpha Vantage error:", data)
             return None
         
-        if "Global Quote" not in data:
+        quote = data.get("Global Quote", {})
+
+        if not quote:
             print("Unexpected API response:", data)
             return None
-
-        quote = data['Global Quote']
 
         current_price = float(quote.get('05. price', 0))
         previous_close = float(quote.get('08. previous close', 0))
 
-        day_change = current_price - previous_close if current_price and previous_close else None
+        day_change = current_price - previous_close if previous_close else None
         day_change_percent = (day_change / previous_close) * 100 if previous_close else None
 
-        data = {
+        result = {
             "symbol": symbol,
             "current_price": current_price,
             "previous_close": previous_close,
-            "day_change": round(day_change, 2) if day_change else None,
-            "day_change_percent": round(day_change_percent, 2) if day_change_percent else None
+            "day_change": round(day_change, 2) if day_change is not None else None,
+            "day_change_percent": round(day_change_percent, 2) if day_change_percent is not None else None
         }
 
         # store in cache
-        stock_cache[company_symbol] = data
+        stock_cache[symbol] = result
 
-        return data
+        return result
 
     except Exception as e:
-        print(f"[GET COMPANY INFO ERROR] {company_symbol}: {e}")
+        print(f"[GET COMPANY INFO ERROR] {symbol}: {e}")
         return None
