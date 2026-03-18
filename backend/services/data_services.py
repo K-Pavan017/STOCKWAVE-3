@@ -6,6 +6,8 @@ import pandas as pd
 from math import ceil
 from config import Config
 
+from cachetools import TTLCache
+
 # --- Symbol Formatting ---
 def format_symbol(symbol, market='US'):
     """Format symbol for Indian or US stocks."""
@@ -303,7 +305,8 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
         return None
 
 # --- Get Company Info (basic) ---
-stock_cache = {}
+
+stock_cache = TTLCache(maxsize=500, ttl=300)  # 5 minutes
 def get_company_info(company_symbol, market='US'):
     symbol = format_symbol(company_symbol, market)
 
