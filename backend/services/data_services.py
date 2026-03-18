@@ -316,40 +316,44 @@ def get_company_info(company_symbol, market='US'):
     try:
         url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={Config.ALPHA_VANTAGE_API_KEY}"
         response = requests.get(url, timeout=10)
-
-        if response.status_code != 200:
-            print("HTTP ERROR:", response.status_code)
-            return None
-
         data = response.json()
-        print("ALPHA RESPONSE:", data)
 
+        # 🔴 Rate limit
         if "Note" in data:
             print("RATE LIMIT HIT")
-            return None
+            return {"error": "rate_limit"}
 
+        # 🔴 API error
         if "Error Message" in data:
-            print("API ERROR:", data)
             return None
 
         quote = data.get("Global Quote")
 
-        if not quote:
-            print("NO QUOTE DATA")
+        # 🔴 Fallback if empty
+        if not quote or quote.get("05. price") in [None, "", "0"]:
+            print("FALLBACK TRIGGERED")
+
+            # fallback: use your DB latest record
+            records = get_stored_stock_data(symbol, limit=1)
+            if records:
+                r = records[0]
+                return {
+                    "symbol": symbol,
+                    "current_price": r.close_price,
+                    "fallback": "db"
+                }
+
             return None
 
         current_price = float(quote.get("05. price", 0))
         previous_close = float(quote.get("08. previous close", 0))
 
-        day_change = current_price - previous_close
-        day_change_percent = (day_change / previous_close) * 100 if previous_close else 0
-
         result = {
             "symbol": symbol,
             "current_price": current_price,
             "previous_close": previous_close,
-            "day_change": round(day_change, 2),
-            "day_change_percent": round(day_change_percent, 2)
+            "day_change": round(current_price - previous_close, 2),
+            "day_change_percent": round(((current_price - previous_close) / previous_close) * 100 if previous_close else 0, 2)
         }
 
         stock_cache[symbol] = result
