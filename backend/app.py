@@ -198,10 +198,27 @@ def get_stock_data(symbol):
 # NEW: API route for fetching real-time stock info (for ticker and dashboard preview)
 @app.route('/api/stock_info/<symbol>', methods=['GET'])
 def api_stock_info(symbol):
+    # 🔥 Try DB first
+    records = data_services.get_stored_stock_data(symbol, limit=1)
+
+    if records:
+        r = records[0]
+        return jsonify({
+            "success": True,
+            "data": {
+                "symbol": symbol,
+                "current_price": r.close_price,
+                "source": "db"
+            }
+        })
+
+    # fallback to API
     info = data_services.get_company_info(symbol)
-    if info:
-        return jsonify({"success": True, "data": info})
-    return jsonify({"success": False, "message": "Could not retrieve company info."}), 200
+
+    if not info:
+        return jsonify({"success": False, "message": "No data"}), 200
+
+    return jsonify({"success": True, "data": info})
 
 # NEW: API route for fetching stock statistics (for dashboard preview details)
 @app.route('/api/stock_statistics/<symbol>', methods=['GET'])
