@@ -8,7 +8,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Alpha Vantage API Key - Replace with your actual key
-    ALPHA_VANTAGE_API_KEY = os.environ.get('ALPHA_VANTAGE_API_KEY', 'RYQX9WB6WNFHXS7Q')
+    ALPHA_VANTAGE_API_KEY = os.environ.get('FINNHUB_API_KEY')
 
     # --- Configuration for Model Persistence (CRITICAL for prediction speed) ---
     # This directory is where the trained models and their scalers will be saved.
