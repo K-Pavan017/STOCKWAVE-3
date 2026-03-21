@@ -19,10 +19,10 @@ def format_symbol(symbol, market='US'):
 def validate_stock_symbol(company_symbol, market='US'):
     try:
         symbol = format_symbol(company_symbol, market)
-        url = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={symbol}&apikey={Config.ALPHA_VANTAGE_API_KEY}"
+        url = f"https://finnhub.io/api/v1/search?q={symbol}&token={Config.FINNHUB_API_KEY}"
         response = requests.get(url, timeout=5)
         data = response.json()
-        return 'bestMatches' in data and len(data['bestMatches']) > 0
+        return 'result' in data and len(data['result']) > 0
     except Exception as e:
         print(f"[VALIDATION ERROR] {symbol}: {e}")
         return False
@@ -32,7 +32,10 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
         symbol = format_symbol(company_symbol, market)
 
         # Alpha Vantage provides daily data
-        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=full&apikey={Config.ALPHA_VANTAGE_API_KEY}"
+        end = int(datetime.now().timestamp())
+        start = int((datetime.now() - timedelta(days=365 * 2)).timestamp())
+        
+        url = f"https://finnhub.io/api/v1/stock/candle?symbol={symbol}&resolution=D&from={start}&to={end}&token={Config.FINNHUB_API_KEY}"
         response = requests.get(url, timeout=10)
 
         if response.status_code != 200:
@@ -42,31 +45,21 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
         data = response.json()
 
         # Handle Alpha Vantage limits/errors
-        if "Note" in data:
-            print(f"[ALPHA VANTAGE RATE LIMIT] {data}")
+
+        if data.get("s") != "ok":
+            print(f"[FINNHUB ERROR] {data}")
             return None
         
-        if "Error Message" in data:
-            print(f"[ALPHA VANTAGE ERROR] {data}")
-            return None
+        df = pd.DataFrame({
+            'Date': pd.to_datetime(data['t'], unit='s'),
+            'Open': data['o'],
+            'High': data['h'],
+            'Low': data['l'],
+            'Close': data['c'],
+            'Volume': data['v']
+        })
         
-        if "Time Series (Daily)" not in data:
-            print(f"[ALPHA VANTAGE] Unexpected response for {symbol}: {data}")
-            return None
-
-        time_series = data['Time Series (Daily)']
-
-        # Convert to DataFrame
-        df_data = []
-        for date_str, values in time_series.items():
-            df_data.append({
-                'Date': date_str,
-                'Open': float(values['1. open']),
-                'High': float(values['2. high']),
-                'Low': float(values['3. low']),
-                'Close': float(values['4. close']),
-                'Volume': int(values['5. volume'])
-            })
+        df = df.sort_values('Date').reset_index(drop=True)
 
         df = pd.DataFrame(df_data)
         df['Date'] = pd.to_datetime(df['Date'])
@@ -205,7 +198,7 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
             source_tag = "DB"
         else:
             # 2. If no recent records in DB, fetch live historical data from Alpha Vantage for the period
-            print(f"[NO DB DATA FOR STATS] Fetching live historical data for {symbol} for {days} days from Alpha Vantage.")
+            print(f"[NO DB DATA FOR STATS] Fetching live historical data for {symbol} for {days} days from Finnhub.")
             
             alphavantage_df = get_historical_data(company_symbol, days=days, period_type='days', market=market)
             
@@ -222,9 +215,9 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
                     })
                 # Ensure chronological order for alphavantage data if not already (DataFrame is sorted)
                 records_to_process = sorted(records_to_process, key=lambda r: r['date'])
-                source_tag = "ALPHA_VANTAGE_LIVE"
+                source_tag = "FINNHUB_LIVE"
             else:
-                print(f"[NO DATA FOR STATS] No historical data found for {symbol} from DB or Alpha Vantage for last {days} days.")
+                print(f"[NO DATA FOR STATS] No historical data found for {symbol} from DB or Finnhub for last {days} days.")
                 return None # Still no data, return None
 
         if not records_to_process:
@@ -314,7 +307,7 @@ def get_company_info(company_symbol, market='US'):
         return stock_cache[symbol]
 
     try:
-        url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={Config.ALPHA_VANTAGE_API_KEY}"
+        url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={Config.FINNHUB_API_KEY}"
         response = requests.get(url, timeout=10)
         data = response.json()
 
@@ -345,8 +338,8 @@ def get_company_info(company_symbol, market='US'):
 
             return None
 
-        current_price = float(quote.get("05. price", 0))
-        previous_close = float(quote.get("08. previous close", 0))
+        current_price = data.get("c")   # current price
+        previous_close = data.get("pc") # previous close
 
         result = {
             "symbol": symbol,
