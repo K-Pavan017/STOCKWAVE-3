@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 from math import ceil
 from config import Config
+from dotenv import load_dotenv
 
 from cachetools import TTLCache
 
