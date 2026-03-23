@@ -197,7 +197,7 @@ def get_historical_data(symbol):
 
 # NEW: API route for fetching real-time stock info (for ticker and dashboard preview)
 @app.route('/api/stock_info/<symbol>', methods=['GET'])
-def api_stock_info(symbol):
+def get_company_info(symbol):
     # 🔥 Try DB first
     records = data_services.get_stored_stock_data(symbol, limit=1)
 
@@ -222,7 +222,7 @@ def api_stock_info(symbol):
 
 # NEW: API route for fetching stock statistics (for dashboard preview details)
 @app.route('/api/stock_statistics/<symbol>', methods=['GET'])
-def api_stock_statistics(symbol):
+def get_stock_statistics(symbol):
     stats = data_services.get_stock_statistics(symbol, days=1) # Get today's stats for current, open, high, volume
     if stats:
         return jsonify({"success": True, "data": stats})
