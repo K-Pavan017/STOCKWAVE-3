@@ -62,10 +62,6 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
         
         df = df.sort_values('Date').reset_index(drop=True)
 
-        df = pd.DataFrame(df_data)
-        df['Date'] = pd.to_datetime(df['Date'])
-        df = df.sort_values('Date').reset_index(drop=True)
-
         # Filter by date range if specified
         if months is not None:
             end_date = datetime.now()
