@@ -106,7 +106,7 @@ def login():
 
 @app.route('/stock/fetch', methods=['POST'])
 @rate_limit(max_requests=10, window=60)  # 10 requests per minute for data fetching
-def fetch_and_store_stock_route():
+def  fetch_and_store_stock():
     data = request.get_json()
     if not data:
         return jsonify({'success': False, 'message': 'No JSON data provided'}), 400
@@ -143,7 +143,7 @@ def fetch_and_store_stock_route():
         return jsonify({'success': False, 'message': f'Server error during data fetch: {str(e)}'}), 500
 
 @app.route('/stock/data/<symbol>', methods=['GET'])
-def get_stock_data(symbol):
+def get_historical_data(symbol):
     market = request.args.get('market', 'US')
     formatted_symbol = data_services.format_symbol(symbol, market)
     limit = int(request.args.get('limit', 365)) # Max records to return
