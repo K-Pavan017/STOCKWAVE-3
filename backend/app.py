@@ -137,14 +137,14 @@ def get_historical_data(symbol):
     if not records: # After attempting to fetch and store, if still no records
         return jsonify({'success': False, 'message': f"No historical data available for {symbol}."}), 404
 
-    # Prepare data for frontend
+    # Prepare data for frontend, safely handling None values
     processed_records = [{
         'date': r.date.strftime('%Y-%m-%d'),
-        'open': float(r.open_price),
-        'high': float(r.high_price),
-        'low': float(r.low_price),
-        'close': float(r.close_price),
-        'volume': int(r.volume),
+        'open': float(r.open_price) if r.open_price is not None else 0.0,
+        'high': float(r.high_price) if r.high_price is not None else 0.0,
+        'low': float(r.low_price) if r.low_price is not None else 0.0,
+        'close': float(r.close_price) if r.close_price is not None else 0.0,
+        'volume': int(r.volume) if r.volume is not None else 0,
     } for r in records]
 
     # Get statistics using the function that handles DB/YFinance fallback

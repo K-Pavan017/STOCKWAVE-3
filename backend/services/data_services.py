@@ -59,8 +59,8 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
             df = df.rename(columns={'Datetime': 'Date'})
             df['Date'] = pd.to_datetime(df['Date']).dt.tz_localize(None)
 
-        # Keep only the columns we need
-        df = df[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']]
+        # Keep only the columns we need and drop any rows with NaN values (e.g. missing Volume data)
+        df = df[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']].dropna()
 
         return df
 
@@ -219,17 +219,17 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
 
         for r in records_to_process:
             if isinstance(r, StockData):
-                prices.append(r.close_price)
-                opening_prices.append(r.open_price)
-                volumes.append(r.volume)
-                high_prices.append(r.high_price)
-                low_prices.append(r.low_price)
+                if r.close_price is not None: prices.append(r.close_price)
+                if r.open_price is not None: opening_prices.append(r.open_price)
+                if r.volume is not None: volumes.append(r.volume)
+                if r.high_price is not None: high_prices.append(r.high_price)
+                if r.low_price is not None: low_prices.append(r.low_price)
             else: # Must be a dictionary from yfinance
-                prices.append(r['close_price'])
-                opening_prices.append(r['open_price'])
-                volumes.append(r['volume'])
-                high_prices.append(r['high_price'])
-                low_prices.append(r['low_price'])
+                if r.get('close_price') is not None: prices.append(r['close_price'])
+                if r.get('open_price') is not None: opening_prices.append(r['open_price'])
+                if r.get('volume') is not None: volumes.append(r['volume'])
+                if r.get('high_price') is not None: high_prices.append(r['high_price'])
+                if r.get('low_price') is not None: low_prices.append(r['low_price'])
 
         # Get latest day's specific values for current_price and opening_price
         latest_record = records_to_process[-1] # Last element is the most recent due to chronological sort
