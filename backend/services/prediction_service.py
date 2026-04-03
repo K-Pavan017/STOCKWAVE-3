@@ -6,11 +6,7 @@ from datetime import datetime, timedelta
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-# TensorFlow/Keras Imports
-from keras.models import Sequential, load_model
-from keras.layers import GRU, Dense, Dropout
-from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.optimizers import Adam, RMSprop
+# TensorFlow/Keras Imports moved inside functions to prevent startup timeout
 
 # Placeholder/Original Imports (Ensure these are available in your environment)
 # NOTE: You MUST ensure StockData is accessible or imported for this to run
@@ -134,7 +130,9 @@ def prepare_data_multi_feature(
     return X_train, y_train, X_test, y_test, scaler, scaled_data, df_processed
 
 def build_model_improved(input_shape):
-    from keras.layers import LSTM, Bidirectional, BatchNormalization
+    from keras.models import Sequential
+    from keras.layers import LSTM, Bidirectional, BatchNormalization, Dense, Dropout
+    from keras.optimizers import Adam
     
     model = Sequential([
         Bidirectional(LSTM(128, return_sequences=True, input_shape=input_shape)),
@@ -164,7 +162,7 @@ def build_model_improved(input_shape):
 
 
 def get_training_callbacks(model_path):
-    from keras.callbacks import ReduceLROnPlateau
+    from keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
     
     early_stop = EarlyStopping(
         monitor="val_loss",
@@ -218,6 +216,8 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
     """
     Predicts stock price using an LSTM model, loading a saved model if available.
     """
+    from keras.models import load_model
+    
     model_paths = get_model_paths(symbol)
     model = None
     scaler = None
