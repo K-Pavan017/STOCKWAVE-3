@@ -1,0 +1,8 @@
+node_modules
+
+site.db
+
+stock_data.db
+__pycache__/
+
+venv/
