@@ -33,16 +33,17 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
     try:
         symbol = format_symbol(company_symbol, market)
 
-        # Determine yfinance period or start/end
-        if months is not None:
-            period = f"{months}mo"
-        elif days is not None:
-            period = f"{days}d"
-        else:
-            period = "2y" # Default
-
         ticker = yf.Ticker(symbol)
-        df = ticker.history(period=period)
+
+        # Use start/end dates for precise control (yfinance only accepts specific period strings)
+        if months is not None:
+            start_date = datetime.now() - timedelta(days=months * 30)
+            df = ticker.history(start=start_date.strftime('%Y-%m-%d'))
+        elif days is not None:
+            start_date = datetime.now() - timedelta(days=days)
+            df = ticker.history(start=start_date.strftime('%Y-%m-%d'))
+        else:
+            df = ticker.history(period="2y")
 
         if df.empty:
             print(f"[YFINANCE] No data found for {symbol}")
@@ -51,23 +52,20 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
         # Reset index to get Date as a column
         df = df.reset_index()
         
-        # yfinance columns: Date, Open, High, Low, Close, Volume
-        # Rename to match current app expectations if necessary (Date, Open, High, Low, Close, Volume)
-        # yfinance usually has 'Date' or 'Datetime' as index
-        
-        df = df.rename(columns={
-            'Date': 'Date',
-            'Open': 'Open',
-            'High': 'High',
-            'Low': 'Low',
-            'Close': 'Close',
-            'Volume': 'Volume'
-        })
+        # Remove timezone info from Date column to avoid issues with DB comparisons
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date']).dt.tz_localize(None)
+        elif 'Datetime' in df.columns:
+            df = df.rename(columns={'Datetime': 'Date'})
+            df['Date'] = pd.to_datetime(df['Date']).dt.tz_localize(None)
+
+        # Keep only the columns we need
+        df = df[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']]
 
         return df
 
     except Exception as e:
-        print(f"[YFINANCE ERROR] {symbol}: {e}")
+        print(f"[YFINANCE ERROR] {company_symbol}: {e}")
         return None
 
 

@@ -140,11 +140,6 @@ export default function Dashboard() {
                           <h2 className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-2xl font-bold`}>
                               <Zap size={24} className="inline-block mr-2 text-blue-400" /> Watchlist
                           </h2>
-                          <RefreshCw 
-                              size={20} 
-                              className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} cursor-pointer hover:text-blue-500 transition-colors duration-200`} 
-                              onClick={refreshWatchlist}
-                          />
                       </div>
                       {watchlistTickers.length === 0 ? (
                           <div className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-center py-8`}>
@@ -182,11 +177,6 @@ export default function Dashboard() {
                           <h2 className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-2xl font-bold`}>
                               <Heart size={24} className="inline-block mr-2 text-red-400" fill="currentColor" /> Wishlist
                           </h2>
-                          <RefreshCw 
-                              size={20} 
-                              className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} cursor-pointer hover:text-blue-500 transition-colors duration-200`} 
-                              onClick={refreshWishlist}
-                          />
                       </div>
                       {wishlistTickers.length === 0 ? (
                           <div className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-center py-8`}>
