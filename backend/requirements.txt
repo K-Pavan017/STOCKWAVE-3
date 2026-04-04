@@ -30,12 +30,8 @@ joblib==1.5.3
 SQLAlchemy==2.0.29
 psycopg2-binary==2.9.9
 Flask-SQLAlchemy
-waitress
-torch
 PyJWT==2.8.0
-Flask-Migrate==4.1.0
 alembic==1.18.3
-
 
 # --- ML / GRU Inference ---
 numpy==1.26.4

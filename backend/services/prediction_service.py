@@ -6,12 +6,12 @@ from datetime import datetime, timedelta
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-# TensorFlow/Keras Imports moved inside functions to prevent startup timeout
-
-# TensorFlow memory/threading restrictions to prevent OOM on 512MB Render instances
 import os
+import gc
+# Force single-threaded execution at the environment level
 os.environ['TF_NUM_INTEROP_THREADS'] = '1'
 os.environ['TF_NUM_INTRAOP_THREADS'] = '1'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Reduce logging noise
 
 # NOTE: You MUST ensure StockData is accessible or imported for this to run
 from models.stock_data import StockData
@@ -134,16 +134,16 @@ def prepare_data_multi_feature(
     return X_train, y_train, X_test, y_test, scaler, scaled_data, df_processed
 
 def build_model_improved(input_shape):
+    import tensorflow as tf
     from keras.models import Sequential
     from keras.layers import LSTM, Dense, Dropout
     from keras.optimizers import Adam
-    import tensorflow as tf
     
-    # Restrict TF threads
+    # Restrict TF threads locally
     tf.config.threading.set_inter_op_parallelism_threads(1)
     tf.config.threading.set_intra_op_parallelism_threads(1)
     
-    # Ultra-Lightweight model — minimizes RAM footprint
+    # Ultra-Lightweight model — minimizes RAM footprint (~150MB overhead)
     model = Sequential([
         LSTM(32, return_sequences=False, input_shape=input_shape),
         Dropout(0.1),
@@ -215,7 +215,13 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
     """
     Predicts stock price using an LSTM model, loading a saved model if available.
     """
+    # Import Keras only when needed
     from keras.models import load_model
+    import tensorflow as tf
+    
+    # Ensure memory is released before starting
+    tf.keras.backend.clear_session()
+    gc.collect()
     
     model_paths = get_model_paths(symbol)
     model = None
@@ -223,7 +229,7 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
     is_trained = False
     
     features_to_scale = ['open', 'high', 'low', 'close', 'volume']
-    window_size = 30  # MUST match prepare_data_multi_feature
+    window_size = 30  # Optimized for memory
     
     steps_map = {'day': 1, 'week': 7, 'month': 30, '3month': 90}
     steps = steps_map.get(horizon.lower(), 1)
@@ -294,12 +300,19 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
         )
     
         
-        # --- Evaluation (Only run on training) ---
+        # --- Evaluation ---
         test_loss = model.evaluate(X_test, y_test, verbose=0)
         
-        test_predictions_scaled = model.predict(X_test, verbose=0)
-        dummy_test_predictions_scaled = np.zeros((len(test_predictions_scaled), num_features))
+        # 4. Save Model and Scaler
+        joblib.dump(scaler, model_paths['scaler'])
+        model.save(model_paths['model'])
+        print(f"[{symbol}] Model and scaler saved to disk.")
         
+        # Trigger GC after training to release buffers
+        tf.keras.backend.clear_session()
+        gc.collect()
+        
+        test_predictions_scaled = model.predict(X_test, verbose=0)
         dummy_actual_test_prices_scaled = np.zeros((len(y_test), num_features))
         
         rmse = np.sqrt(mean_squared_error(y_test, test_predictions_scaled))
