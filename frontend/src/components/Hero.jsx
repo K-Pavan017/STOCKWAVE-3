@@ -61,51 +61,59 @@ export default function Hero() {
       
       for (const s of symbolsToFetch) {
         try {
-          const response = await axios.get(`${backendUrl}/api/stock_info/${s}`);
+          // Use the existing /stock/data endpoint (1-day limit for speed)
+          const response = await axios.get(`${backendUrl}/stock/data/${s}`, {
+            params: { limit: 2, days: 2, market: 'US' }
+          });
           if (response.data.success) {
-            const data = response.data.data;
-            const price = data.current_price ? `$${data.current_price.toFixed(2)}` : 'N/A';
-            const changePercent = data.day_change_percent !== null ? `${data.day_change_percent >= 0 ? '+' : ''}${data.day_change_percent.toFixed(2)}%` : 'N/A';
-            const trending = data.day_change_percent >= 0 ? "up" : "down";
+            const records = response.data.data.records;
+            const stats = response.data.data.statistics;
             
-            fetchedTickerData.push({
-              symbol: data.symbol,
-              price: price,
-              change: changePercent,
-              trending: trending,
-            });
+            const latestRecord = records && records.length > 0 ? records[records.length - 1] : null;
+            const prevRecord   = records && records.length > 1 ? records[records.length - 2] : null;
 
-            // If it's AAPL, also update the dashboard preview
+            const currentPrice = latestRecord?.close ?? null;
+            const prevClose    = prevRecord?.close ?? latestRecord?.open ?? null;
+            const dayChangePercent = (currentPrice !== null && prevClose && prevClose !== 0)
+              ? ((currentPrice - prevClose) / prevClose) * 100
+              : null;
+
+            const price        = currentPrice !== null ? `$${currentPrice.toFixed(2)}` : 'N/A';
+            const changeStr    = dayChangePercent !== null
+              ? `${dayChangePercent >= 0 ? '+' : ''}${dayChangePercent.toFixed(2)}%`
+              : 'N/A';
+            const trending     = (dayChangePercent ?? 0) >= 0 ? "up" : "down";
+            
+            fetchedTickerData.push({ symbol: s, price, change: changeStr, trending });
+
+            // Update dashboard preview for AAPL
             if (s === "AAPL") {
-              // Fetch statistics for open, volume, high as well
-              const statsResponse = await axios.get(`${backendUrl}/api/stock_statistics/${s}`);
-              if (statsResponse.data.success) {
-                const stats = statsResponse.data.data;
-                setDashboardPreviewStock({
-                  symbol: data.symbol,
-                  price: price,
-                  change: changePercent,
-                  trending: trending,
-                  open: stats.price_stats?.opening ? `$${stats.price_stats.opening.toFixed(2)}` : 'N/A',
-                  volume: stats.volume_stats?.total ? `${(stats.volume_stats.total / 1000000).toFixed(1)}M` : 'N/A',
-                  high: stats.price_stats?.highest ? `$${stats.price_stats.highest.toFixed(2)}` : 'N/A',
-                  aiPrediction: "↗ BUY" // This could also come from an API if available
-                });
-              }
+              setDashboardPreviewStock({
+                symbol: s,
+                price,
+                change: changeStr,
+                trending,
+                open:   latestRecord?.open   ? `$${latestRecord.open.toFixed(2)}`   : 'N/A',
+                volume: stats?.volume_stats?.total
+                  ? `${(stats.volume_stats.total / 1000000).toFixed(1)}M`
+                  : (latestRecord?.volume ? `${(latestRecord.volume / 1000000).toFixed(1)}M` : 'N/A'),
+                high:   stats?.price_stats?.highest ? `$${stats.price_stats.highest.toFixed(2)}` :
+                        (latestRecord?.high ? `$${latestRecord.high.toFixed(2)}` : 'N/A'),
+                aiPrediction: "↗ BUY"
+              });
             }
           }
         } catch (error) {
-          // Optionally handle error in UI
+          // Silently ignore ticker fetch errors
         }
       }
       setTickerData(fetchedTickerData);
     };
 
     fetchRealTimeData();
-    // Refresh data every 5 minutes (adjust as needed)
-    const intervalId = setInterval(fetchRealTimeData, 5 * 60 * 1000); 
-
-    return () => clearInterval(intervalId); // Clear interval on unmount
+    // Refresh every 5 minutes
+    const intervalId = setInterval(fetchRealTimeData, 5 * 60 * 1000);
+    return () => clearInterval(intervalId);
   }, []);
 
 

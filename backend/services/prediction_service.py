@@ -131,30 +131,22 @@ def prepare_data_multi_feature(
 
 def build_model_improved(input_shape):
     from keras.models import Sequential
-    from keras.layers import LSTM, Bidirectional, BatchNormalization, Dense, Dropout
+    from keras.layers import LSTM, Dense, Dropout
     from keras.optimizers import Adam
     
+    # Lightweight model — fast training on free-tier hardware
     model = Sequential([
-        Bidirectional(LSTM(128, return_sequences=True, input_shape=input_shape)),
-        BatchNormalization(),
-        Dropout(0.3),
-        
-        Bidirectional(LSTM(64, return_sequences=True)),
-        BatchNormalization(),
-        Dropout(0.3),
-        
+        LSTM(64, return_sequences=True, input_shape=input_shape),
+        Dropout(0.2),
         LSTM(32, return_sequences=False),
-        Dropout(0.3),
-        
+        Dropout(0.2),
         Dense(16, activation='relu'),
         Dense(1)
     ])
 
-    optimizer = Adam(learning_rate=0.0005, clipnorm=1.0)
-    
     model.compile(
-        optimizer=optimizer,
-        loss="huber_loss",  # More robust to outliers than MSE
+        optimizer=Adam(learning_rate=0.001),
+        loss="huber_loss",
         metrics=['mae']
     )
 
@@ -287,11 +279,11 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
         history = model.fit(
             X_train,
             y_train,
-            epochs=150,  # Increased for better training
-            batch_size=16,  # Smaller batch size for better generalization
-            validation_split=0.2,  # More validation data
+            epochs=70,
+            batch_size=32,
+            validation_split=0.1,
             callbacks=callbacks,
-            verbose=1
+            verbose=0  # Suppress per-epoch output to reduce log noise
         )
     
         
