@@ -8,7 +8,11 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 # TensorFlow/Keras Imports moved inside functions to prevent startup timeout
 
-# Placeholder/Original Imports (Ensure these are available in your environment)
+# TensorFlow memory/threading restrictions to prevent OOM on 512MB Render instances
+import os
+os.environ['TF_NUM_INTEROP_THREADS'] = '1'
+os.environ['TF_NUM_INTRAOP_THREADS'] = '1'
+
 # NOTE: You MUST ensure StockData is accessible or imported for this to run
 from models.stock_data import StockData
 
@@ -85,7 +89,7 @@ def get_data_from_db(symbol, data_limit):
 def prepare_data_multi_feature(
     df_full,
     features_to_scale,
-    window_size=60,
+    window_size=30,  # Reduced from 60 to save memory and speed up
     train_test_split_ratio=0.8,
     is_training=True,
     scaler=None
@@ -133,14 +137,17 @@ def build_model_improved(input_shape):
     from keras.models import Sequential
     from keras.layers import LSTM, Dense, Dropout
     from keras.optimizers import Adam
+    import tensorflow as tf
     
-    # Lightweight model — fast training on free-tier hardware
+    # Restrict TF threads
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+    
+    # Ultra-Lightweight model — minimizes RAM footprint
     model = Sequential([
-        LSTM(64, return_sequences=True, input_shape=input_shape),
-        Dropout(0.2),
-        LSTM(32, return_sequences=False),
-        Dropout(0.2),
-        Dense(16, activation='relu'),
+        LSTM(32, return_sequences=False, input_shape=input_shape),
+        Dropout(0.1),
+        Dense(8, activation='relu'),
         Dense(1)
     ])
 
@@ -216,7 +223,7 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
     is_trained = False
     
     features_to_scale = ['open', 'high', 'low', 'close', 'volume']
-    window_size = 60
+    window_size = 30  # MUST match prepare_data_multi_feature
     
     steps_map = {'day': 1, 'week': 7, 'month': 30, '3month': 90}
     steps = steps_map.get(horizon.lower(), 1)
@@ -279,7 +286,7 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
         history = model.fit(
             X_train,
             y_train,
-            epochs=70,
+            epochs=30,
             batch_size=32,
             validation_split=0.1,
             callbacks=callbacks,
