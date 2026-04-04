@@ -85,6 +85,8 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
 
 def get_stored_stock_data(company_symbol, start_date=None, end_date=None, limit=None):
     try:
+        # Ensure any previous failed transaction is cleared before querying
+        db.session.expire_all()
         query = StockData.query.filter_by(company_symbol=company_symbol)
         
         if start_date:
@@ -102,6 +104,11 @@ def get_stored_stock_data(company_symbol, start_date=None, end_date=None, limit=
         return records
     except Exception as e:
         print(f"[DB READ ERROR] {company_symbol}: {e}")
+        try:
+            db.session.rollback()
+            db.session.remove()
+        except Exception:
+            pass
         return []
 
 def fetch_and_store_stock(company_symbol, months=18, market='US'):
@@ -173,7 +180,12 @@ def fetch_and_store_stock(company_symbol, months=18, market='US'):
         return True, f"Stored {len(new_records)} new records and updated {updated_count} for {symbol}"
 
     except Exception as e:
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        finally:
+            db.session.remove()  # Fully discard the bad session so the pool gives a fresh connection
         print(f"[STORAGE ERROR] {symbol}: {e}")
         return False, f"Failed to fetch and store data for {symbol}: {e}"
 
