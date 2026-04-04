@@ -147,11 +147,19 @@ function StockData({ width = 1200, ratio = 1 }) {
   const chartDataWithPrediction = [...chartData];
   if (prediction?.close_series?.length > 0) {
     const lastHistoricalDate = chartData.length > 0 ? chartData[chartData.length - 1].date : null;
+    const lastHistoricalPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : null;
 
     const futurePredictions = prediction.close_series.filter(p => {
         const predictionDate = new Date(p.date);
         return lastHistoricalDate ? predictionDate > lastHistoricalDate : true;
     });
+
+    // Add the last historical point to the prediction segment to connect the lines
+    if (chartData.length > 0) {
+      // Find the first prediction or just use the last historical point
+      // We don't push it to chartDataWithPrediction (it's already there)
+      // but we need to ensure the Line series accessor catches it.
+    }
 
     chartDataWithPrediction.push(
       ...futurePredictions.map(p => ({
@@ -620,11 +628,16 @@ function StockData({ width = 1200, ratio = 1 }) {
                       
                       {prediction && (
                         <LineSeries
-                          yAccessor={(d) => d.predicted ? d.close : null}
+                          yAccessor={(d, index) => {
+                            if (d.predicted) return d.close;
+                            // Connect to last historical point
+                            const nextPoint = data[index + 1];
+                            if (nextPoint && nextPoint.predicted) return d.close;
+                            return null;
+                          }}
                           stroke="#FCD34D"
                           strokeWidth={3}
                           strokeDasharray="5,5"
-                          highlightOnHover={true}
                         />
                       )}
                       
@@ -745,13 +758,21 @@ function StockData({ width = 1200, ratio = 1 }) {
                       {prediction && (
                         <Line
                           type="monotone"
-                          dataKey={(d) => d.predicted ? d.close : null}
+                          dataKey={(d, index) => {
+                            // To connect the line, the last historical point must also be included in the prediction series
+                            if (d.predicted) return d.close;
+                            // Check if this is the last historical point before a prediction
+                            const nextPoint = chartDataWithPrediction[index + 1];
+                            if (nextPoint && nextPoint.predicted) return d.close;
+                            return null;
+                          }}
                           stroke="#FCD34D"
                           strokeWidth={3}
                           strokeDasharray="8 4"
                           dot={{ fill: "#FCD34D", strokeWidth: 2, r: 4 }}
-                          connectNulls={false}
+                          connectNulls={true}
                           isAnimationActive={false}
+                          name="Predicted"
                         />
                       )}
                     </LineChart>
