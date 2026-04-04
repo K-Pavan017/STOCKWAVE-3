@@ -1,5 +1,5 @@
 import requests
-import yfinance as yf
+from yahooquery import Ticker
 from models.stock_data import StockData
 from database import db
 from datetime import datetime, timedelta
@@ -21,9 +21,10 @@ def format_symbol(symbol, market='US'):
 def validate_stock_symbol(company_symbol, market='US'):
     try:
         symbol = format_symbol(company_symbol, market)
-        ticker = yf.Ticker(symbol)
-        # info can be slow, sometimes history is a better check
+        ticker = Ticker(symbol)
         hist = ticker.history(period="1d")
+        if isinstance(hist, dict):
+            return False
         return not hist.empty
     except Exception as e:
         print(f"[VALIDATION ERROR] {symbol}: {e}")
@@ -33,9 +34,9 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
     try:
         symbol = format_symbol(company_symbol, market)
 
-        ticker = yf.Ticker(symbol)
+        ticker = Ticker(symbol)
 
-        # Use start/end dates for precise control (yfinance only accepts specific period strings)
+        # Use start/end dates for precise control
         if months is not None:
             start_date = datetime.now() - timedelta(days=months * 30)
             df = ticker.history(start=start_date.strftime('%Y-%m-%d'))
@@ -45,27 +46,40 @@ def get_historical_data(company_symbol, months=None, days=None, period_type='mon
         else:
             df = ticker.history(period="2y")
 
-        if df.empty:
-            print(f"[YFINANCE] No data found for {symbol}")
+        if isinstance(df, dict) or df is None or df.empty:
+            print(f"[YAHOOQUERY] No data found for {symbol}")
             return None
 
-        # Reset index to get Date as a column
-        df = df.reset_index()
+        # Reset index to get date as a column
+        if isinstance(df.index, pd.MultiIndex):
+            df = df.reset_index()
+            
+        # Rename yahooquery columns to match format
+        df = df.rename(columns={
+            'date': 'Date',
+            'datetime': 'Date',
+            'open': 'Open',
+            'high': 'High',
+            'low': 'Low',
+            'close': 'Close',
+            'volume': 'Volume'
+        })
         
         # Remove timezone info from Date column to avoid issues with DB comparisons
         if 'Date' in df.columns:
             df['Date'] = pd.to_datetime(df['Date']).dt.tz_localize(None)
-        elif 'Datetime' in df.columns:
-            df = df.rename(columns={'Datetime': 'Date'})
-            df['Date'] = pd.to_datetime(df['Date']).dt.tz_localize(None)
 
         # Keep only the columns we need and drop any rows with NaN values (e.g. missing Volume data)
-        df = df[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']].dropna()
+        req_cols = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+        if not all(col in df.columns for col in req_cols):
+             return None
+             
+        df = df[req_cols].dropna()
 
         return df
 
     except Exception as e:
-        print(f"[YFINANCE ERROR] {company_symbol}: {e}")
+        print(f"[YAHOOQUERY ERROR] {company_symbol}: {e}")
         return None
 
 

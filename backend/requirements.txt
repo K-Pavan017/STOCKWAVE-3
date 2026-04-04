@@ -45,4 +45,4 @@ tensorflow-cpu==2.15.0
 
 # --- API Client ---
 requests==2.32.3
-yfinance==0.2.52
+yahooquery
