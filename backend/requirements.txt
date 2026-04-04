@@ -4,7 +4,6 @@ Flask-Cors==4.0.0
 cachetools
 gunicorn==21.2.0
 python-dotenv==1.0.1
-keras==2.15.0
 waitress==3.0.0
 beautifulsoup4==4.12.3
 cryptography==46.0.4
@@ -33,11 +32,10 @@ Flask-SQLAlchemy
 PyJWT==2.8.0
 alembic==1.18.3
 
-# --- ML / GRU Inference ---
+# --- ML / Statistical Inference ---
 numpy==1.26.4
 pandas==2.2.3
 scikit-learn==1.4.2
-tensorflow-cpu==2.15.0
 
 # --- API Client ---
 requests==2.32.3
