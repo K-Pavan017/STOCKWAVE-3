@@ -269,7 +269,7 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=240):
         print(f"[{symbol}] Training new model (or retraining)...")
 
         # Prepare data for training
-        X_train, y_train, X_test, y_test, scaler, scaled_data_full, df_processed, last_input_sequence_data = \
+        X_train, y_train, X_test, y_test, scaler, scaled_data_full, df_processed = \
             prepare_data_multi_feature(
                 df,
                 features_to_scale,
