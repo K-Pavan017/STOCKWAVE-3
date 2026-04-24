@@ -21,9 +21,27 @@ from services import auth_service, data_services, prediction_service
 
 app = Flask(__name__)
 app.config.from_object(Config) # Load configuration from Config object
+
+# Robust CORS configuration
 CORS(app, 
-     origins=["https://stockwave-3.vercel.app"], # Replace with your actual URL
-     supports_credentials=True) # Enable CORS for all routes
+     resources={r"/*": {
+         "origins": ["https://stockwave-3.vercel.app", "http://localhost:5173", "http://localhost:3000"],
+         "methods": ["GET", "POST", "OPTIONS"],
+         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
+         "expose_headers": ["Content-Type", "Authorization"],
+         "supports_credentials": True,
+         "max_age": 3600
+     }})
+
+# Global error handler to ensure CORS headers on errors
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Pass through HTTP errors
+    if hasattr(e, 'code'):
+        return jsonify({'success': False, 'message': str(e)}), e.code
+    # Handle non-HTTP exceptions
+    app.logger.error(f"Unhandled exception: {e}")
+    return jsonify({'success': False, 'message': 'Internal Server Error'}), 500
 
 # Configure logging
 if not app.debug:

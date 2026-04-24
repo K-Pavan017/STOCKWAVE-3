@@ -115,7 +115,7 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=1200):
     Main entry point for predictions. Uses Transformer + XGBoost hybrid.
     """
     # Configuration
-    window_size = 20
+    window_size = 10
     features_to_scale = ['open', 'high', 'low', 'close', 'volume']
     
     steps_map = {'day': 1, 'week': 7, 'month': 30, '3month': 90}
@@ -170,10 +170,10 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=1200):
     
     # Early Stopping variables
     best_val_loss = float('inf')
-    patience = 12
+    patience = 2
     epochs_no_improve = 0
     best_state = None
-    max_epochs = 100
+    max_epochs = 6
     
     for epoch in range(max_epochs):
         model.train()
