@@ -118,12 +118,26 @@ def fetch_stock_data():
     success, message = data_services.fetch_and_store_stock(formatted_symbol, months=months, market=market)
     
     if success:
+        # Fetch records after storage to return to the frontend immediately
+        records_obj = data_services.get_stored_stock_data(company_symbol=formatted_symbol, limit=1200)
+        processed_records = [{
+            'date': r.date.strftime('%Y-%m-%d'),
+            'open': float(r.open_price) if r.open_price is not None else 0.0,
+            'high': float(r.high_price) if r.high_price is not None else 0.0,
+            'low': float(r.low_price) if r.low_price is not None else 0.0,
+            'close': float(r.close_price) if r.close_price is not None else 0.0,
+            'volume': int(r.volume) if r.volume is not None else 0,
+        } for r in records_obj]
+        
         # Return statistics along with success
         stats = data_services.get_stock_statistics(formatted_symbol, days=365) # Default to 1 year for stats
         return jsonify({
             'success': True, 
             'message': message,
-            'data': {'statistics': stats}
+            'data': {
+                'statistics': stats,
+                'records': processed_records
+            }
         }), 200
     
     return jsonify({'success': False, 'message': message}), 500
