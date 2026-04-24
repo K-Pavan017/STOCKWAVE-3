@@ -60,7 +60,7 @@ export default function LearnAndNews() {
                 title: "Stock Market for Beginners",
                 description: "Master the fundamentals of stock markets and start your investing journey",
                 link: "https://www.youtube.com/watch?v=p7HKvqRI_Bo",
-                thumbnail: "/api/placeholder/640/360",
+                thumbnail: "/assets/news/news1.png",
                 icon: <Youtube size={24} className="text-red-500" />,
                 color: "from-red-600 to-red-400"
               },
@@ -68,7 +68,7 @@ export default function LearnAndNews() {
                 title: "How to Trade Stocks",
                 description: "Learn effective trading strategies from industry professionals",
                 link: "https://www.youtube.com/watch?v=4CQzOXbkLqY",
-                thumbnail: "/api/placeholder/640/360",
+                thumbnail: "/assets/news/news2.png",
                 icon: <Youtube size={24} className="text-red-500" />,
                 color: "from-red-600 to-red-400"
               },
@@ -76,7 +76,7 @@ export default function LearnAndNews() {
                 title: "Technical Analysis Basics",
                 description: "Understand charts, indicators and patterns for better trading decisions",
                 link: "https://www.youtube.com/watch?v=eynxyoKgpng",
-                thumbnail: "/api/placeholder/640/360",
+                thumbnail: "/assets/news/news3.png",
                 icon: <Youtube size={24} className="text-red-500" />,
                 color: "from-red-600 to-red-400"
               },
