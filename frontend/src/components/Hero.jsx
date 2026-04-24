@@ -136,7 +136,7 @@ const handleSearch = async () => {
 
     const fetchRes = await axios.post(`${backendUrl}/stock/fetch`, {
       symbol: trimmedSymbol,
-      months: 18,
+      months: 48,
       market: stockMarket
     });
 
@@ -151,8 +151,8 @@ const handleSearch = async () => {
       // Then, get the stored data for display
       const getRes = await axios.get(`${backendUrl}/stock/data/${trimmedSymbol}`, {
         params: {
-          limit: 365,
-          days: 365,
+          limit: 1200,
+          days: 1200,
           market: stockMarket,
         }
       });

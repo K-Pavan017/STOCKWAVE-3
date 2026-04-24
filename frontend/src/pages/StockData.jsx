@@ -36,6 +36,8 @@ const DURATION_OPTIONS = [
   { label: "6 Months", value: 180 },
   { label: "1 Year", value: 365 },
   { label: "2 Years", value: 730 },
+  { label: "3 Years", value: 1095 },
+  { label: "5 Years", value: 1825 },
 ];
 
 const PREDICT_OPTIONS = [
@@ -180,13 +182,16 @@ function StockData({ width = 1200, ratio = 1 }) {
       setError("");
       setPrediction(null);
       try {
+        const trimmedSymbol = symbol.trim();
         // Determine market (US/IN) based on symbol
         let stockMarket = 'US';
         if (symbol.toUpperCase().endsWith('.NS') || symbol.toUpperCase() === 'SBIN') {
           stockMarket = 'IN';
         }
-        const res = await axios.get(`${backendUrl}/stock/data/${symbol}`, {
-          params: { limit: duration, days: duration, market: stockMarket },
+        const res = await axios.post(`${backendUrl}/stock/fetch`, {
+          symbol: trimmedSymbol,
+          months: 48,
+          market: stockMarket
         });
         if (res.data.success) {
           const processedRecords = res.data.data.records
@@ -235,15 +240,18 @@ function StockData({ width = 1200, ratio = 1 }) {
     setPrediction(null);
     setError("");
     try {
+      const trimmedSymbol = symbol.trim();
       // Determine market (US/IN) based on symbol
       let stockMarket = 'US';
       if (symbol.toUpperCase().endsWith('.NS') || symbol.toUpperCase() === 'SBIN') {
         stockMarket = 'IN';
       }
-      const res = await axios.get(`${backendUrl}/stock/predict/${symbol}`, {
+      const res = await axios.get(`${backendUrl}/stock/predict/${trimmedSymbol}`, {
         params: {
           horizon: predictHorizon,
           market: stockMarket,
+          limit: 1200,
+          days: 1200,
         },
       });
       if (res.data.success) {
@@ -519,7 +527,8 @@ function StockData({ width = 1200, ratio = 1 }) {
           <div className="mb-8">
             <div className="bg-gradient-to-r from-yellow-600/20 via-yellow-500/20 to-amber-600/20 backdrop-blur-lg rounded-2xl p-6 border border-yellow-500/30 shadow-2xl">
               <div className="flex items-center mb-4">
-                <span className="text-2xl mr-3">🎯</span>
+                <Clock size={16} className="mr-2 text-amber-400" />
+                <span className="font-medium">3.5+ years of historical data</span>
                 <h3 className="text-xl font-bold text-white">
                   LSTM AI Prediction ({PREDICT_OPTIONS.find(opt => opt.value === predictHorizon)?.label})
                 </h3>

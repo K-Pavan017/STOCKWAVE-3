@@ -186,14 +186,13 @@ def predict_stock(symbol):
         return jsonify({"success": True, "prediction": prediction_cache[cache_key]})
     
     # Ensure sufficient data is in DB for prediction.
-    # The LSTM model typically needs a good amount of historical data (e.g., 240-360 days)
-    # Check if we have at least 400 days (approx. 13-14 months) for robust prediction.
-    min_prediction_data_days = 250
+    # The LSTM model needs more historical data for a 3-year lookback.
+    min_prediction_data_days = 900 # ~3.5 years of trading data
     db_records_for_pred = data_services.get_stored_stock_data(company_symbol=formatted_symbol, limit=min_prediction_data_days)
 
-    if not db_records_for_pred or len(db_records_for_pred) < min_prediction_data_days * 0.9: # If significantly less data
-        # Debug log removed for production
-        success, fetch_message = data_services.fetch_and_store_stock(formatted_symbol, months=18, market=market)
+    if not db_records_for_pred or len(db_records_for_pred) < min_prediction_data_days * 0.9: 
+        # Fetch 4 years (48 months) to be safe
+        success, fetch_message = data_services.fetch_and_store_stock(formatted_symbol, months=48, market=market)
         if not success:
             return jsonify({'success': False, 'message': f"Prediction failed due to insufficient historical data: {fetch_message}"}), 500
         # Debug log removed for production
