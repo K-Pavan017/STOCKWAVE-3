@@ -104,7 +104,29 @@ def login():
     # Assuming auth_service.login_user handles login and returns appropriate JSON
     return auth_service.login_user(email, password)
 
-# /stock/fetch removed as requested
+@app.route('/stock/fetch', methods=['POST'])
+def fetch_stock_data():
+    data = request.get_json()
+    symbol = data.get('symbol')
+    months = data.get('months', 18)
+    market = data.get('market', 'US')
+    
+    if not symbol:
+        return jsonify({'success': False, 'message': 'Symbol is required'}), 400
+        
+    formatted_symbol = data_services.format_symbol(symbol, market)
+    success, message = data_services.fetch_and_store_stock(formatted_symbol, months=months, market=market)
+    
+    if success:
+        # Return statistics along with success
+        stats = data_services.get_stock_statistics(formatted_symbol, days=365) # Default to 1 year for stats
+        return jsonify({
+            'success': True, 
+            'message': message,
+            'data': {'statistics': stats}
+        }), 200
+    
+    return jsonify({'success': False, 'message': message}), 500
 
 @app.route('/stock/data/<symbol>', methods=['GET'])
 def get_historical_data(symbol):
