@@ -624,11 +624,10 @@ function StockData({ width = 1200, ratio = 1 }) {
                       />
 
                       <CandlestickSeries
-                        stroke={(d) => d.predicted ? "#FCD34D" : (d.close > d.open ? "#10B981" : "#EF4444")}
-                        wickStroke={(d) => d.predicted ? "#FCD34D" : (d.close > d.open ? "#10B981" : "#EF4444")}
-                        fill={(d) => d.predicted ? "#FCD34D" : (d.close > d.open ? "#10B981" : "#EF4444")}
-                        opacity={(d) => d.predicted ? 0.9 : 0.8}
-                        strokeWidth={(d) => d.predicted ? 2 : 1}
+                        stroke={(d) => d.predicted ? "transparent" : (d.close > d.open ? "#10B981" : "#EF4444")}
+                        wickStroke={(d) => d.predicted ? "transparent" : (d.close > d.open ? "#10B981" : "#EF4444")}
+                        fill={(d) => d.predicted ? "transparent" : (d.close > d.open ? "#10B981" : "#EF4444")}
+                        opacity={(d) => d.predicted ? 0 : 0.8}
                       />
                       
                       {prediction && (
@@ -750,7 +749,7 @@ function StockData({ width = 1200, ratio = 1 }) {
                         stroke="#3B82F6"
                         strokeWidth={2}
                         dot={false}
-                        connectNulls={false}
+                        connectNulls={true}
                         isAnimationActive={false}
                       />
                       
