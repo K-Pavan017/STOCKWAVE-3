@@ -148,13 +148,7 @@ function StockData({ width = 1200, ratio = 1 }) {
     isLastHistorical: i === chartData.length - 1
   }));
   if (prediction?.close_series?.length > 0) {
-    const lastHistoricalDate = chartData.length > 0 ? chartData[chartData.length - 1].date : null;
-    const lastHistoricalPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : null;
-
-    const futurePredictions = prediction.close_series.filter(p => {
-        const predictionDate = new Date(p.date);
-        return lastHistoricalDate ? predictionDate > lastHistoricalDate : true;
-    });
+    const futurePredictions = prediction.close_series;
 
     // Add the last historical point to the prediction segment to connect the lines
     if (chartData.length > 0) {
