@@ -83,8 +83,10 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
     window_size = 10
     features_to_scale = ['open', 'high', 'low', 'close', 'volume']
     
+    if not horizon:
+        horizon = 'month'
     steps_map = {'day': 1, 'week': 7, 'month': 30, '3month': 90}
-    steps = steps_map.get(horizon.lower(), 1)
+    steps = steps_map.get(str(horizon).strip().lower(), 30)
     
     # 1. Data Fetching
     df = get_data_from_db(symbol, lookback_days)
