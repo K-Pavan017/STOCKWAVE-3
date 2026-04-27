@@ -281,18 +281,22 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
         highest_price_period = max(high_prices) if high_prices else None
         lowest_price_period = min(low_prices) if low_prices else None
 
+        avg_price = round(sum(prices) / len(prices), 2) if prices else 0
+        oldest_price = prices[0] if prices else current_price
+        
         stats = {
-            'period_days': len(records_to_process), # Actual number of days for which stats are calculated
+            'period_days': len(records_to_process),
             'current_price': current_price,
-            'opening_price': opening_price,
+            'opening_price': oldest_price,
             'price_stats': {
-                'open': opening_price,
+                'open': oldest_price,
                 'current': current_price,
                 'highest': highest_price_period,
                 'lowest': lowest_price_period,
-                'change_value': round(current_price - opening_price, 2) if current_price is not None and opening_price is not None else 0,
-                'change_percent': round(((current_price - opening_price) / opening_price) * 100, 2) if current_price is not None and opening_price is not None and opening_price != 0 else 0
-            } if current_price is not None else {}, # Ensure this dict is only created if current_price exists
+                'average': avg_price,
+                'change': round(current_price - oldest_price, 2) if current_price is not None and oldest_price is not None else 0,
+                'change_percent': round(((current_price - oldest_price) / oldest_price) * 100, 2) if current_price is not None and oldest_price is not None and oldest_price != 0 else 0
+            } if current_price is not None else {}, 
             'volume_stats': {
                 'average': int(sum(volumes) / len(volumes)) if volumes else 0,
                 'highest': max(volumes) if volumes else 0,
