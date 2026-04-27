@@ -26,7 +26,7 @@ import {
   XAxis as RechartsXAxis,
   YAxis as RechartsYAxis,
 } from "recharts";
-import { Heart } from "lucide-react";
+import { Heart, Clock } from "lucide-react";
 
 const backendUrl =import.meta.env.VITE_APP_BACKEND_URL; 
 

@@ -136,7 +136,7 @@ const handleSearch = async () => {
 
     const fetchRes = await axios.post(`${backendUrl}/stock/fetch`, {
       symbol: trimmedSymbol,
-      months: 48,
+      months: 12,
       market: stockMarket
     });
 
@@ -151,8 +151,8 @@ const handleSearch = async () => {
       // Then, get the stored data for display
       const getRes = await axios.get(`${backendUrl}/stock/data/${trimmedSymbol}`, {
         params: {
-          limit: 1200,
-          days: 1200,
+          limit: 365,
+          days: 365,
           market: stockMarket,
         }
       });
@@ -397,7 +397,7 @@ const handleKeyDown = (e) => {
               </div>
               <div className="flex items-center">
                 <Clock size={16} className="mr-2 text-amber-400" />
-                <span className="font-medium">1.5+ years of historical data</span>
+                <span className="font-medium">1 year of historical data</span>
               </div>
             </div>
             <div className="flex items-center space-x-6">
