@@ -184,6 +184,8 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
         'predicted_open': first_pred, 
         'predicted_high': round(float(first_pred * 1.01), 2),
         'predicted_low': round(float(first_pred * 0.99), 2),
+        'final_predicted_close': round(float(predicted_prices[-1]), 2),
+        'total_change_percent': round(((predicted_prices[-1] - last_close) / last_close) * 100, 2),
         'close_series': close_series_data,
         'open_series': [{'date': d['date'], 'open': d['close'], 'predicted': True} for d in close_series_data],
         'high_series': [{'date': d['date'], 'high': round(d['close'] * 1.01, 2), 'predicted': True} for d in close_series_data],

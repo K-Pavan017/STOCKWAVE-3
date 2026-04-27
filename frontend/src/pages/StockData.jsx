@@ -537,20 +537,22 @@ function StockData({ width = 1200, ratio = 1 }) {
                 {prediction.predicted_close !== null && (
                   <>
                     <div className="text-center">
-                      <p className="text-yellow-200 text-sm font-medium">Predicted Close (Day 1)</p>
+                      <p className="text-yellow-200 text-sm font-medium">Next Day Forecast</p>
                       <p className="text-white text-2xl font-bold">${prediction.predicted_close}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-yellow-200 text-sm font-medium">Predicted Open (Day 1)</p>
-                      <p className="text-white text-2xl font-bold">${prediction.predicted_open}</p>
+                      <p className="text-yellow-200 text-sm font-medium">Target Forecast ({PREDICT_OPTIONS.find(opt => opt.value === predictHorizon)?.label})</p>
+                      <p className="text-white text-2xl font-bold">${prediction.final_predicted_close || prediction.predicted_close}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-yellow-200 text-sm font-medium">Predicted High (Day 1)</p>
-                      <p className="text-white text-2xl font-bold">${prediction.predicted_high}</p>
+                      <p className="text-yellow-200 text-sm font-medium">Expected Change</p>
+                      <p className={`text-2xl font-bold ${prediction.total_change_percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {prediction.total_change_percent >= 0 ? '+' : ''}{prediction.total_change_percent}%
+                      </p>
                     </div>
                     <div className="text-center">
-                      <p className="text-yellow-200 text-sm font-medium">Predicted Low (Day 1)</p>
-                      <p className="text-white text-2xl font-bold">${prediction.predicted_low}</p>
+                      <p className="text-yellow-200 text-sm font-medium">Prediction Period</p>
+                      <p className="text-white text-2xl font-bold">{prediction.close_series.length} Days</p>
                     </div>
                   </>
                 )}
