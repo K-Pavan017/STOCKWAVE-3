@@ -35,9 +35,6 @@ const DURATION_OPTIONS = [
   { label: "3 Months", value: 90 },
   { label: "6 Months", value: 180 },
   { label: "1 Year", value: 365 },
-  { label: "2 Years", value: 730 },
-  { label: "3 Years", value: 1095 },
-  { label: "5 Years", value: 1825 },
 ];
 
 const PREDICT_OPTIONS = [
@@ -190,7 +187,7 @@ function StockData({ width = 1200, ratio = 1 }) {
         }
         const res = await axios.post(`${backendUrl}/stock/fetch`, {
           symbol: trimmedSymbol,
-          months: 48,
+          months: 12,
           market: stockMarket
         });
         if (res.data.success) {
@@ -250,8 +247,8 @@ function StockData({ width = 1200, ratio = 1 }) {
         params: {
           horizon: predictHorizon,
           market: stockMarket,
-          limit: 1200,
-          days: 1200,
+          limit: 365,
+          days: 365,
         },
       });
       if (res.data.success) {
@@ -528,7 +525,7 @@ function StockData({ width = 1200, ratio = 1 }) {
             <div className="bg-gradient-to-r from-yellow-600/20 via-yellow-500/20 to-amber-600/20 backdrop-blur-lg rounded-2xl p-6 border border-yellow-500/30 shadow-2xl">
               <div className="flex items-center mb-4">
                 <Clock size={16} className="mr-2 text-amber-400" />
-                <span className="font-medium">3.5+ years of historical data</span>
+                <span className="font-medium">1 year of historical data</span>
                 <h3 className="text-xl font-bold text-white">
                   LSTM AI Prediction ({PREDICT_OPTIONS.find(opt => opt.value === predictHorizon)?.label})
                 </h3>

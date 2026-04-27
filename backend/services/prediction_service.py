@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import timedelta
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.preprocessing import StandardScaler
+import gc
 
 # NOTE: StockData must be accessible
 from models.stock_data import StockData
@@ -74,7 +75,7 @@ def prepare_features(df, features_to_use, window_size=10):
         
     return np.array(X), np.array(y)
 
-def lstm_predict_multiple(symbol, horizon='day', lookback_days=1200):
+def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
     """
     Main entry point for predictions. Uses GradientBoosting with technical indicators.
     """
@@ -109,11 +110,18 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=1200):
     features_to_scale.extend(ext_features)
     
     df.dropna(inplace=True)
+    
+    # Cast to float32 to save memory
+    for col in features_to_scale:
+        df[col] = df[col].astype(np.float32)
+    df['target'] = df['target'].astype(np.float32)
+
     if len(df) < (window_size + 10):
         return None, "Insufficient data after feature generation."
 
     # 3. Model Training with GradientBoosting (fast, low-memory)
-    print(f"[{symbol}] Training GradientBoosting model...")
+    # Reducing complexity for Render's 512MB limit
+    print(f"[{symbol}] Training GradientBoosting model (v3-min-mem) on {len(df)} rows...")
     X, y = prepare_features(df, features_to_scale, window_size)
     
     # Scale features
@@ -121,13 +129,18 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=1200):
     X_scaled = scaler.fit_transform(X)
     
     model = GradientBoostingRegressor(
-        n_estimators=200,
-        max_depth=5,
-        learning_rate=0.05,
+        n_estimators=50,  # Reduced from 100
+        max_depth=3,      # Keep at 3
+        learning_rate=0.1,
         subsample=0.8,
         random_state=42
     )
     model.fit(X_scaled, y)
+    
+    # Explicitly clear X and y to free memory
+    del X
+    del y
+    gc.collect()
     
     # 4. Multi-step Prediction (Recursive)
     last_close = df['close'].iloc[-1]
@@ -178,5 +191,5 @@ def lstm_predict_multiple(symbol, horizon='day', lookback_days=1200):
         'confidence': 0.85
     }
     
-    print(f"[{symbol}] Prediction generated successfully using GradientBoosting.")
+    print(f"[{symbol}] Prediction generated successfully using optimized GradientBoosting.")
     return result, None

@@ -126,7 +126,7 @@ def login():
 def fetch_stock_data():
     data = request.get_json()
     symbol = data.get('symbol')
-    months = data.get('months', 18)
+    months = data.get('months', 12)
     market = data.get('market', 'US')
     
     if not symbol:
@@ -137,7 +137,7 @@ def fetch_stock_data():
     
     if success:
         # Fetch records after storage to return to the frontend immediately
-        records_obj = data_services.get_stored_stock_data(company_symbol=formatted_symbol, limit=1200)
+        records_obj = data_services.get_stored_stock_data(company_symbol=formatted_symbol, limit=365)
         processed_records = [{
             'date': r.date.strftime('%Y-%m-%d'),
             'open': float(r.open_price) if r.open_price is not None else 0.0,
@@ -239,21 +239,20 @@ def predict_stock(symbol):
         # Debug log removed for production
         return jsonify({"success": True, "prediction": prediction_cache[cache_key]})
     
-    # Ensure sufficient data is in DB for prediction.
-    # The LSTM model needs more historical data for a 3-year lookback.
-    min_prediction_data_days = 900 # ~3.5 years of trading data
+    # The model needs a decent amount of historical data.
+    min_prediction_data_days = 252 # ~1 year of trading data (252 days)
     db_records_for_pred = data_services.get_stored_stock_data(company_symbol=formatted_symbol, limit=min_prediction_data_days)
 
     if not db_records_for_pred or len(db_records_for_pred) < min_prediction_data_days * 0.9: 
-        # Fetch 4 years (48 months) to be safe
-        success, fetch_message = data_services.fetch_and_store_stock(formatted_symbol, months=48, market=market)
+        # Fetch 1 year (12 months) to be safe
+        success, fetch_message = data_services.fetch_and_store_stock(formatted_symbol, months=12, market=market)
         if not success:
             return jsonify({'success': False, 'message': f"Prediction failed due to insufficient historical data: {fetch_message}"}), 500
         # Debug log removed for production
         # No need to re-fetch db_records_for_pred here, as prediction_service.lstm_predict_multiple
         # will internally call get_data_from_db which will get the newly stored data.
 
-    predictions_data, error_message = prediction_service.lstm_predict_multiple(formatted_symbol, horizon=horizon)
+    predictions_data, error_message = prediction_service.generate_stock_prediction(formatted_symbol, horizon=horizon)
 
     if error_message:
         # Debug log removed for production

@@ -111,7 +111,7 @@ def get_stored_stock_data(company_symbol, start_date=None, end_date=None, limit=
             pass
         return []
 
-def fetch_and_store_stock(company_symbol, months=18, market='US'):
+def fetch_and_store_stock(company_symbol, months=12, market='US'):
     symbol = format_symbol(company_symbol, market)
 
     try:
