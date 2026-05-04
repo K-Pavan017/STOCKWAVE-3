@@ -137,19 +137,19 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    # XGBoost model
+    # XGBoost model - reduced complexity to prevent overfitting
     xgb_model = XGBRegressor(
-        n_estimators=100,
-        max_depth=5,
-        learning_rate=0.05,
+        n_estimators=50,
+        max_depth=3,
+        learning_rate=0.03,
         random_state=42,
         n_jobs=-1
     )
     
-    # RandomForest model
+    # RandomForest model - reduced complexity
     rf_model = RandomForestRegressor(
-        n_estimators=100,
-        max_depth=5,
+        n_estimators=50,
+        max_depth=3,
         random_state=42,
         n_jobs=-1
     )
@@ -169,7 +169,11 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
     
     current_window = df[features_to_scale].values[-window_size:]
     
-    for _ in range(steps):
+    # Damping factor to prevent exponential explosion in long-term predictions
+    # This pushes the prediction towards mean-reversion (zero return) as we go further out.
+    damping_factor = 0.95 
+    
+    for i in range(steps):
         window_flat = current_window.flatten().reshape(1, -1)
         window_scaled = scaler.transform(window_flat)
         
@@ -177,13 +181,35 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
         pred_xgb = xgb_model.predict(window_scaled)[0]
         pred_rf = rf_model.predict(window_scaled)[0]
         pred_return = (pred_xgb + pred_rf) / 2.0
+        
+        # Apply clipping to prevent extreme outliers (max 3% change per day)
+        pred_return = np.clip(pred_return, -0.03, 0.03)
+        
+        # Apply damping: predictions get more conservative as the horizon increases
+        decay = damping_factor ** (i // 5) # Decay every 5 days
+        pred_return = pred_return * decay
             
         current_price = current_price * np.exp(pred_return)
         predicted_prices.append(current_price)
         
-        # Shift window
+        # Shift window and update basic features to prevent 'stale features' issue
+        prev_price = current_window[-1, 3] # Index 3 is 'close'
+        
         next_row = current_window[-1].copy()
-        next_row[3] = current_price # index 3 is 'close'
+        next_row[3] = current_price # close
+        next_row[0] = prev_price    # open (approx)
+        next_row[1] = max(current_price, prev_price) # high
+        next_row[2] = min(current_price, prev_price) # low
+        
+        # Update Daily_Return (Index 9)
+        if prev_price != 0:
+            next_row[9] = np.log(current_price / prev_price)
+            
+        # Update SMA_10 (Index 5)
+        # Combine the last 9 closes with the new one
+        temp_closes = np.append(current_window[1:, 3], [current_price])
+        next_row[5] = np.mean(temp_closes)
+        
         current_window = np.append(current_window[1:], [next_row], axis=0)
 
     # 5. Format Results
