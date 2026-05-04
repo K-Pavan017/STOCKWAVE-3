@@ -5,3 +5,6 @@ instance/
 *.sqlite
 *.db
 .env
+STOCKWAVE-3.env
+logs/
+__pycache__/

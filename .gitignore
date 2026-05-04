@@ -1,0 +1,29 @@
+# Logs
+logs/
+*.log
+
+# Dependencies
+node_modules/
+venv/
+.venv/
+env/
+
+# Environment
+.env
+*.env
+STOCKWAVE-3.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+bin/
+
+# Temporary
+*.swp
+*.swo
+.idea/
+.vscode/

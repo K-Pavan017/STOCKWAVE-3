@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 from datetime import timedelta
-from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from xgboost import XGBRegressor
 from sklearn.preprocessing import StandardScaler
 import gc
 
@@ -37,12 +38,15 @@ def get_data_from_db(symbol, data_limit):
     records = (
         StockData.query
         .filter(StockData.company_symbol == symbol)
-        .order_by(StockData.date.asc())
+        .order_by(StockData.date.desc())
         .limit(data_limit)
         .all()
     )
     if not records:
         return None
+
+    # Sort ASC for model training
+    records.sort(key=lambda r: r.date)
 
     df = pd.DataFrame([{
         'date': r.date,
@@ -55,6 +59,10 @@ def get_data_from_db(symbol, data_limit):
 
     # Ensure date is datetime object
     df['date'] = pd.to_datetime(df['date'])
+    
+    # Remove duplicates and ensure chronological order
+    df = df.drop_duplicates(subset=['date']).sort_values('date')
+    
     return df.dropna()
 
 def prepare_features(df, features_to_use, window_size=10):
@@ -121,23 +129,33 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
     if len(df) < (window_size + 10):
         return None, "Insufficient data after feature generation."
 
-    # 3. Model Training with GradientBoosting (fast, low-memory)
-    # Reducing complexity for Render's 512MB limit
-    print(f"[{symbol}] Training GradientBoosting model (v3-min-mem) on {len(df)} rows...")
+    # 3. Model Training with Ensemble (XGBoost + RandomForest)
+    print(f"[{symbol}] Training Ensemble (XGB+RF) model on {len(df)} rows...")
     X, y = prepare_features(df, features_to_scale, window_size)
     
     # Scale features
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    model = GradientBoostingRegressor(
-        n_estimators=50,  # Reduced from 100
-        max_depth=3,      # Keep at 3
-        learning_rate=0.1,
-        subsample=0.8,
-        random_state=42
+    # XGBoost model
+    xgb_model = XGBRegressor(
+        n_estimators=100,
+        max_depth=5,
+        learning_rate=0.05,
+        random_state=42,
+        n_jobs=-1
     )
-    model.fit(X_scaled, y)
+    
+    # RandomForest model
+    rf_model = RandomForestRegressor(
+        n_estimators=100,
+        max_depth=5,
+        random_state=42,
+        n_jobs=-1
+    )
+    
+    xgb_model.fit(X_scaled, y)
+    rf_model.fit(X_scaled, y)
     
     # Explicitly clear X and y to free memory
     del X
@@ -154,7 +172,11 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
     for _ in range(steps):
         window_flat = current_window.flatten().reshape(1, -1)
         window_scaled = scaler.transform(window_flat)
-        pred_return = model.predict(window_scaled)[0]
+        
+        # Ensemble prediction (average)
+        pred_xgb = xgb_model.predict(window_scaled)[0]
+        pred_rf = rf_model.predict(window_scaled)[0]
+        pred_return = (pred_xgb + pred_rf) / 2.0
             
         current_price = current_price * np.exp(pred_return)
         predicted_prices.append(current_price)
@@ -195,5 +217,5 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
         'confidence': 0.85
     }
     
-    print(f"[{symbol}] Prediction generated successfully using optimized GradientBoosting.")
+    print(f"[{symbol}] Prediction generated successfully using Ensemble (XGBoost + RandomForest).")
     return result, None
