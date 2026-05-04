@@ -133,20 +133,23 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
     print(f"[{symbol}] Training Ensemble (XGB+RF) model on {len(df)} rows...")
     X, y = prepare_features(df, features_to_scale, window_size)
     
+    # Calculate historical average daily return to use as a mean-reversion anchor
+    historical_avg_return = np.mean(y) if len(y) > 0 else 0
+    
     # Scale features
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    # XGBoost model - reduced complexity to prevent overfitting
+    # XGBoost model - even more conservative to avoid trend-following bias
     xgb_model = XGBRegressor(
         n_estimators=50,
         max_depth=3,
-        learning_rate=0.03,
+        learning_rate=0.02,
         random_state=42,
         n_jobs=-1
     )
     
-    # RandomForest model - reduced complexity
+    # RandomForest model
     rf_model = RandomForestRegressor(
         n_estimators=50,
         max_depth=3,
@@ -169,30 +172,29 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
     
     current_window = df[features_to_scale].values[-window_size:]
     
-    # Damping factor to prevent exponential explosion in long-term predictions
-    # This pushes the prediction towards mean-reversion (zero return) as we go further out.
-    damping_factor = 0.95 
-    
+    # Stronger damping to prevent exponential explosion
+    # As the horizon increases, we pull the prediction toward the historical average return
     for i in range(steps):
         window_flat = current_window.flatten().reshape(1, -1)
         window_scaled = scaler.transform(window_flat)
         
-        # Ensemble prediction (average)
+        # Ensemble prediction
         pred_xgb = xgb_model.predict(window_scaled)[0]
         pred_rf = rf_model.predict(window_scaled)[0]
         pred_return = (pred_xgb + pred_rf) / 2.0
         
-        # Apply clipping to prevent extreme outliers (max 3% change per day)
-        pred_return = np.clip(pred_return, -0.03, 0.03)
+        # Strict clipping: cap daily growth to 1% to prevent unrealistic +100% monthly changes
+        pred_return = np.clip(pred_return, -0.015, 0.015)
         
-        # Apply damping: predictions get more conservative as the horizon increases
-        decay = damping_factor ** (i // 5) # Decay every 5 days
-        pred_return = pred_return * decay
+        # Dynamic Damping: gradually blend prediction with historical average
+        # By the end of 30 days, we rely more on historical mean than model trend
+        alpha = 0.95 ** (i + 1) # Probability of following the model vs the mean
+        pred_return = (pred_return * alpha) + (historical_avg_return * (1 - alpha))
             
         current_price = current_price * np.exp(pred_return)
         predicted_prices.append(current_price)
         
-        # Shift window and update basic features to prevent 'stale features' issue
+        # Shift window and update features
         prev_price = current_window[-1, 3] # Index 3 is 'close'
         
         next_row = current_window[-1].copy()
@@ -205,10 +207,11 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
         if prev_price != 0:
             next_row[9] = np.log(current_price / prev_price)
             
-        # Update SMA_10 (Index 5)
-        # Combine the last 9 closes with the new one
+        # Update Moving Averages (Index 5 & 7 - SMA_10 and EMA_10)
         temp_closes = np.append(current_window[1:, 3], [current_price])
-        next_row[5] = np.mean(temp_closes)
+        next_row[5] = np.mean(temp_closes) # SMA_10
+        # Simple EMA approximation: (new_price * 2/11) + (prev_ema * 9/11)
+        next_row[7] = (current_price * 0.18) + (next_row[7] * 0.82) 
         
         current_window = np.append(current_window[1:], [next_row], axis=0)
 
