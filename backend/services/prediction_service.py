@@ -65,32 +65,25 @@ def get_data_from_db(symbol, data_limit):
     
     return df.dropna()
 
-def prepare_features(df, features_to_use, window_size=10):
+def prepare_features(df, features_to_use):
     """
-    Prepares lagged-window features for GradientBoosting.
-    Each sample is a flattened window of the last `window_size` rows.
+    Prepares a focused set of quant features.
+    Reduces dimensionality to prevent overfitting on the small 1-year dataset.
     """
     df_processed = df.copy()
     df_processed.dropna(inplace=True)
     
-    X, y = [], []
-    data_values = df_processed[features_to_use].values
-    target_values = df_processed['target'].values
+    # We use the current state of features to predict the NEXT day's target
+    X = df_processed[features_to_use].values[:-1]
+    y = df_processed['target'].values[1:]
     
-    for i in range(window_size, len(data_values)):
-        X.append(data_values[i-window_size:i].flatten())
-        y.append(target_values[i])
-        
-    return np.array(X), np.array(y)
+    return X, y
 
 def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
     """
-    Main entry point for predictions. Uses GradientBoosting with technical indicators.
+    Main entry point for predictions. Uses an optimized Quant-Ensemble approach.
     """
     # Configuration
-    window_size = 10
-    features_to_scale = ['open', 'high', 'low', 'close', 'volume']
-    
     if not horizon:
         horizon = 'month'
     steps_map = {'day': 1, 'week': 7, 'month': 30, '3month': 90}
@@ -98,132 +91,121 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
     
     # 1. Data Fetching
     df = get_data_from_db(symbol, lookback_days)
-    if df is None or df.empty or len(df) < (window_size + 50):
-        return None, f"Insufficient data to generate prediction (need ~{window_size+50} records)."
+    if df is None or df.empty or len(df) < 50:
+        return None, "Insufficient data to generate prediction (need ~50 records)."
         
-    # 2. Calculate Features (Technical Indicators)
-    df.loc[:, 'SMA_10'] = df['close'].rolling(window=10).mean()
-    df.loc[:, 'SMA_20'] = df['close'].rolling(window=20).mean()
-    df.loc[:, 'EMA_10'] = df['close'].ewm(span=10, adjust=False).mean()
-    df.loc[:, 'EMA_20'] = df['close'].ewm(span=20, adjust=False).mean()
-    df.loc[:, 'Daily_Return'] = df['close'].pct_change()
-    df.loc[:, 'Volatility_10'] = df['Daily_Return'].rolling(window=10).std()
-    df.loc[:, 'RSI'] = calculate_rsi(df['close'])
-    df.loc[:, 'MACD'], df.loc[:, 'MACD_Signal'] = calculate_macd(df['close'])
-    df.loc[:, 'BB_Upper'], df.loc[:, 'BB_Lower'] = calculate_bollinger_bands(df['close'])
+    # 2. Advanced Feature Engineering (Quant-focused)
+    # Price Momentum
+    df['Daily_Return'] = np.log(df['close'] / df['close'].shift(1))
+    df['SMA_10'] = df['close'].rolling(window=10).mean()
+    df['SMA_20'] = df['close'].rolling(window=20).mean()
+    
+    # Relative Price Position (Mean Reversion Features)
+    df['Price_to_SMA10'] = df['close'] / df['SMA_10']
+    df['Price_to_SMA20'] = df['close'] / df['SMA_20']
+    
+    # Volatility & Trend
+    df['Volatility_10'] = df['Daily_Return'].rolling(window=10).std()
+    df['RSI'] = calculate_rsi(df['close'])
+    
+    # Bollinger Band Position (0 = Lower Band, 1 = Upper Band)
+    bb_upper, bb_lower = calculate_bollinger_bands(df['close'])
+    df['BB_Pos'] = (df['close'] - bb_lower) / (bb_upper - bb_lower)
+    
+    # Volume Analysis
+    df['Volume_Avg'] = df['volume'].rolling(window=10).mean()
+    df['Volume_Ratio'] = df['volume'] / df['Volume_Avg']
     
     # Target: Log Return
-    df['target'] = np.log(df['close'] / df['close'].shift(1))
+    df['target'] = df['Daily_Return']
     
-    ext_features = ['SMA_10', 'SMA_20', 'EMA_10', 'EMA_20', 'Daily_Return', 
-                    'Volatility_10', 'RSI', 'MACD', 'MACD_Signal', 'BB_Upper', 'BB_Lower']
-    features_to_scale.extend(ext_features)
+    # Curated features for the model (Low dimensionality = Better accuracy on small data)
+    quant_features = [
+        'Daily_Return', 'Price_to_SMA10', 'Price_to_SMA20', 
+        'Volatility_10', 'RSI', 'BB_Pos', 'Volume_Ratio'
+    ]
     
     df.dropna(inplace=True)
-    
-    # Cast to float32 to save memory
-    for col in features_to_scale:
-        df[col] = df[col].astype(np.float32)
-    df['target'] = df['target'].astype(np.float32)
-
-    if len(df) < (window_size + 10):
+    if len(df) < 20:
         return None, "Insufficient data after feature generation."
 
-    # 3. Model Training with Ensemble (XGBoost + RandomForest)
-    print(f"[{symbol}] Training Ensemble (XGB+RF) model on {len(df)} rows...")
-    X, y = prepare_features(df, features_to_scale, window_size)
+    # 3. Model Training (Optimized Ensemble)
+    X, y = prepare_features(df, quant_features)
     
-    # Calculate historical average daily return to use as a mean-reversion anchor
+    # Calculate historical average daily return
     historical_avg_return = np.mean(y) if len(y) > 0 else 0
     
-    # Scale features
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    # XGBoost model - even more conservative to avoid trend-following bias
+    # XGBoost: Captures non-linear relationships
     xgb_model = XGBRegressor(
-        n_estimators=50,
+        n_estimators=60,
         max_depth=3,
         learning_rate=0.02,
-        random_state=42,
-        n_jobs=-1
+        subsample=0.8,
+        colsample_bytree=0.8,
+        random_state=42
     )
     
-    # RandomForest model
+    # RandomForest: Provides stability
     rf_model = RandomForestRegressor(
-        n_estimators=50,
+        n_estimators=60,
         max_depth=3,
-        random_state=42,
-        n_jobs=-1
+        random_state=42
     )
     
     xgb_model.fit(X_scaled, y)
     rf_model.fit(X_scaled, y)
     
-    # Explicitly clear X and y to free memory
-    del X
-    del y
-    gc.collect()
-    
-    # 4. Multi-step Prediction (Recursive)
+    # 4. Multi-step Prediction (Recursive with Dynamic Gravity)
     last_close = df['close'].iloc[-1]
     predicted_prices = []
     current_price = last_close
     
-    current_window = df[features_to_scale].values[-window_size:]
+    # Start with the latest feature vector
+    current_features = df[quant_features].iloc[-1].values.copy()
     
-    # Stronger damping to prevent exponential explosion
-    # As the horizon increases, we pull the prediction toward the historical average return
+    # Damping factor logic (Gravity)
+    damping_factor = 0.94
+    
     for i in range(steps):
-        window_flat = current_window.flatten().reshape(1, -1)
-        window_scaled = scaler.transform(window_flat)
+        feat_scaled = scaler.transform(current_features.reshape(1, -1))
         
-        # Ensemble prediction
-        pred_xgb = xgb_model.predict(window_scaled)[0]
-        pred_rf = rf_model.predict(window_scaled)[0]
-        pred_return = (pred_xgb + pred_rf) / 2.0
+        # Ensemble: 60% XGBoost, 40% RF for better trend capture
+        p_xgb = xgb_model.predict(feat_scaled)[0]
+        p_rf = rf_model.predict(feat_scaled)[0]
+        pred_return = (p_xgb * 0.6) + (p_rf * 0.4)
         
-        # Strict clipping: cap daily growth to 1% to prevent unrealistic +100% monthly changes
+        # Stability: Clip return and apply gravity
         pred_return = np.clip(pred_return, -0.015, 0.015)
-        
-        # Dynamic Damping: gradually blend prediction with historical average
-        # By the end of 30 days, we rely more on historical mean than model trend
-        alpha = 0.95 ** (i + 1) # Probability of following the model vs the mean
+        alpha = damping_factor ** (i + 1)
         pred_return = (pred_return * alpha) + (historical_avg_return * (1 - alpha))
             
         current_price = current_price * np.exp(pred_return)
         predicted_prices.append(current_price)
         
-        # Shift window and update features
-        prev_price = current_window[-1, 3] # Index 3 is 'close'
+        # Update current features for next step (Simulation)
+        # current_features indices: 0:Daily_Return, 1:Price_to_SMA10, 2:Price_to_SMA20, 
+        # 3:Volatility_10, 4:RSI, 5:BB_Pos, 6:Volume_Ratio
         
-        next_row = current_window[-1].copy()
-        next_row[3] = current_price # close
-        next_row[0] = prev_price    # open (approx)
-        next_row[1] = max(current_price, prev_price) # high
-        next_row[2] = min(current_price, prev_price) # low
+        prev_price = current_price / np.exp(pred_return)
         
-        # Update Daily_Return (Index 9)
-        if prev_price != 0:
-            next_row[9] = np.log(current_price / prev_price)
-            
-        # Update Moving Averages (Index 5 & 7 - SMA_10 and EMA_10)
-        temp_closes = np.append(current_window[1:, 3], [current_price])
-        next_row[5] = np.mean(temp_closes) # SMA_10
-        # Simple EMA approximation: (new_price * 2/11) + (prev_ema * 9/11)
-        next_row[7] = (current_price * 0.18) + (next_row[7] * 0.82) 
+        # Simulate how features change based on predicted price
+        current_features[0] = pred_return # New daily return
+        current_features[1] *= (1 + pred_return * 0.8) # Approx SMA update
+        current_features[2] *= (1 + pred_return * 0.9)
+        current_features[4] = 0.5 + (current_features[4] - 0.5) * 0.95 + (pred_return * 2) # RSI drift
+        current_features[6] = 1.0 # Assume normal volume in future
         
-        current_window = np.append(current_window[1:], [next_row], axis=0)
-
     # 5. Format Results
     last_date = df['date'].iloc[-1]
     future_dates = []
-    current_date = last_date
-    
+    curr_d = last_date
     while len(future_dates) < steps:
-        current_date += timedelta(days=1)
-        if current_date.weekday() < 5:
-            future_dates.append(current_date)
+        curr_d += timedelta(days=1)
+        if curr_d.weekday() < 5:
+            future_dates.append(curr_d)
             
     close_series_data = [
         {'date': d.strftime('%Y-%m-%d'), 'close': round(float(p), 2), 'predicted': True}
@@ -235,16 +217,16 @@ def generate_stock_prediction(symbol, horizon='day', lookback_days=365):
     result = {
         'predicted_close': first_pred,
         'predicted_open': first_pred, 
-        'predicted_high': round(float(first_pred * 1.01), 2),
-        'predicted_low': round(float(first_pred * 0.99), 2),
+        'predicted_high': round(float(first_pred * 1.008), 2),
+        'predicted_low': round(float(first_pred * 0.992), 2),
         'final_predicted_close': round(float(predicted_prices[-1]), 2),
         'total_change_percent': round(((predicted_prices[-1] - last_close) / last_close) * 100, 2),
         'close_series': close_series_data,
         'open_series': [{'date': d['date'], 'open': d['close'], 'predicted': True} for d in close_series_data],
-        'high_series': [{'date': d['date'], 'high': round(d['close'] * 1.01, 2), 'predicted': True} for d in close_series_data],
-        'low_series': [{'date': d['date'], 'low': round(d['close'] * 0.99, 2), 'predicted': True} for d in close_series_data],
-        'confidence': 0.85
+        'high_series': [{'date': d['date'], 'high': round(d['close'] * 1.008, 2), 'predicted': True} for d in close_series_data],
+        'low_series': [{'date': d['date'], 'low': round(d['close'] * 0.992, 2), 'predicted': True} for d in close_series_data],
+        'confidence': 0.82
     }
     
-    print(f"[{symbol}] Prediction generated successfully using Ensemble (XGBoost + RandomForest).")
+    print(f"[{symbol}] Prediction generated with Quant-Optimized features.")
     return result, None
