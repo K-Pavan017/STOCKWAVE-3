@@ -7,10 +7,11 @@ from functools import wraps
 from math import ceil
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import json
+import redis
 from config import Config
 from database import db
 from flask_migrate import Migrate
-from cachetools import TTLCache
 from waitress import serve
 import logging
 from logging.handlers import RotatingFileHandler
@@ -60,10 +61,33 @@ if not app.debug:
 db.init_app(app)
 
 migrate = Migrate(app, db)
-stock_cache = TTLCache(maxsize=200, ttl=300)
-prediction_cache = TTLCache(maxsize=100, ttl=3600)  # Cache predictions for 1 hour
+# Initialize Redis client
+try:
+    redis_client = redis.from_url(app.config.get('REDIS_URL', 'redis://localhost:6379/0'), decode_responses=True)
+    # Test connection
+    redis_client.ping()
+    app.logger.info("Connected to Redis successfully.")
+except Exception as e:
+    app.logger.warning(f"Could not connect to Redis: {e}. Falling back to no cache.")
+    redis_client = None
 
-# Simple rate limiting
+def get_cached_data(key):
+    if redis_client:
+        try:
+            data = redis_client.get(key)
+            return json.loads(data) if data else None
+        except Exception as e:
+            app.logger.error(f"Redis get error: {e}")
+    return None
+
+def set_cached_data(key, value, timeout=3600):
+    if redis_client:
+        try:
+            redis_client.setex(key, timeout, json.dumps(value))
+        except Exception as e:
+            app.logger.error(f"Redis set error: {e}")
+
+# Rate limiting
 request_counts = {}
 
 def rate_limit(max_requests=10, window=60):
@@ -73,6 +97,30 @@ def rate_limit(max_requests=10, window=60):
             client_ip = request.remote_addr
             current_time = time.time()
             
+            if redis_client:
+                try:
+                    key = f"rate_limit:{client_ip}:{f.__name__}"
+                    # Use Redis pipeline for atomic operations
+                    pipe = redis_client.pipeline()
+                    # Add current request timestamp
+                    pipe.zadd(key, {str(current_time): current_time})
+                    # Remove timestamps older than the window
+                    pipe.zremrangebyscore(key, 0, current_time - window)
+                    # Count requests in the window
+                    pipe.zcard(key)
+                    # Set expiry for the key to clean up
+                    pipe.expire(key, window)
+                    
+                    results = pipe.execute()
+                    request_count = results[2]
+                    
+                    if request_count > max_requests:
+                        return jsonify({'success': False, 'message': 'Rate limit exceeded'}), 429
+                except Exception as e:
+                    app.logger.error(f"Redis rate limit error: {e}")
+                    # Fallback to in-memory if Redis fails
+            
+            # In-memory fallback
             if client_ip not in request_counts:
                 request_counts[client_ip] = []
             
@@ -167,6 +215,17 @@ def get_historical_data(symbol):
     limit = int(request.args.get('limit', 365)) # Max records to return
     days = int(request.args.get('days', limit)) # Duration for historical fetch if needed, and for stats
 
+    # Create cache key
+    cache_key = f"stock_data_{formatted_symbol}_{limit}_{days}"
+    
+    # Try to get from cache first
+    cached_data = get_cached_data(cache_key)
+    if cached_data:
+        return jsonify({
+            'success': True,
+            'data': cached_data
+        }), 200
+
     # 1. Try to get data from DB first
     # get_stored_stock_data typically orders by date descending.
     # We want enough data for charting for 'limit' days.
@@ -205,12 +264,17 @@ def get_historical_data(symbol):
     # Use the 'days' parameter from the frontend for statistics
     stats = data_services.get_stock_statistics(formatted_symbol, days=days)
 
+    response_data = {
+        'records': processed_records,
+        'statistics': stats
+    }
+    
+    # Cache the response data for 5 minutes (300 seconds)
+    set_cached_data(cache_key, response_data, timeout=300)
+
     return jsonify({
         'success': True,
-        'data': {
-            'records': processed_records,
-            'statistics': stats
-        }
+        'data': response_data
     }), 200
 
 # /api/stock_info and /api/stock_statistics removed as requested
@@ -235,9 +299,9 @@ def predict_stock(symbol):
     cache_key = f"{formatted_symbol}_{horizon}"
     
     # Check cache first
-    if cache_key in prediction_cache:
-        # Debug log removed for production
-        return jsonify({"success": True, "prediction": prediction_cache[cache_key]})
+    cached_prediction = get_cached_data(cache_key)
+    if cached_prediction:
+        return jsonify({"success": True, "prediction": cached_prediction})
     
     # The model needs a decent amount of historical data.
     min_prediction_data_days = 252 # ~1 year of trading data (252 days)
@@ -259,8 +323,8 @@ def predict_stock(symbol):
         return jsonify({"success": False, "message": error_message}), 400
 
     if predictions_data:
-        # Cache the prediction
-        prediction_cache[cache_key] = predictions_data
+        # Cache the prediction for 1 hour
+        set_cached_data(cache_key, predictions_data, timeout=3600)
         return jsonify({"success": True, "prediction": predictions_data})
 
     return jsonify({"success": False, "message": "Prediction could not be generated."}), 500

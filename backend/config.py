@@ -14,6 +14,9 @@ class Config:
         'pool_size': 5,
         'max_overflow': 10,
     }
+    
+    # Redis configuration
+    REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
 
 
     # yfinance is used for data fetching and does not require an API key for basic usage.

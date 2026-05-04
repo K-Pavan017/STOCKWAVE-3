@@ -8,7 +8,6 @@ from math import ceil
 from config import Config
 from dotenv import load_dotenv
 
-from cachetools import TTLCache
 
 # --- Symbol Formatting ---
 def format_symbol(symbol, market='US'):
@@ -314,7 +313,3 @@ def get_stock_statistics(company_symbol, days=1, market='US'):
         print(f"[STATS ERROR] {company_symbol}: {e}")
         return None
 
-# --- Get Company Info (basic) ---
-
-stock_cache = TTLCache(maxsize=500, ttl=300)  # 5 minutes
-# get_company_info removed as requested to avoid rate limiting other requests
