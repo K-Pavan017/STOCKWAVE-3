@@ -12,9 +12,10 @@ from dotenv import load_dotenv
 # --- Symbol Formatting ---
 def format_symbol(symbol, market='US'):
     """Format symbol for Indian or US stocks."""
-    if market == 'IN' and not symbol.upper().endswith('.NS'):
-        return f"{symbol.upper()}.NS"
-    return symbol.upper()
+    upper_sym = symbol.upper()
+    if market == 'IN' and not (upper_sym.endswith('.NS') or upper_sym.endswith('.BO')):
+        return f"{upper_sym}.NS"
+    return upper_sym
 
 # --- Validate Stock (lightweight check) ---
 def validate_stock_symbol(company_symbol, market='US'):

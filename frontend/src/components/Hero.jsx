@@ -130,7 +130,7 @@ const handleSearch = async () => {
 
     // Determine market (US/IN) based on symbol
     let stockMarket = 'US';
-    if (trimmedSymbol.toUpperCase().endsWith('.NS') || trimmedSymbol.toUpperCase() === 'SBIN') {
+    if (trimmedSymbol.toUpperCase().endsWith('.NS') || trimmedSymbol.toUpperCase().endsWith('.BO') || trimmedSymbol.toUpperCase() === 'SBIN') {
       stockMarket = 'IN';
     }
 

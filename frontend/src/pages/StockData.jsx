@@ -62,6 +62,59 @@ function formatMonthYear(date) {
   return format(date, "MMM yyyy"); // Formats as "Jan 2023"
 }
 
+function getCurrencySymbol(symbol) {
+  if (!symbol) return "$";
+  const upperSymbol = symbol.toUpperCase().trim();
+  if (upperSymbol.endsWith(".NS") || upperSymbol.endsWith(".BO") || upperSymbol === "SBIN") {
+    return "₹";
+  }
+  if (upperSymbol.endsWith(".L")) {
+    return "£";
+  }
+  if (
+    upperSymbol.endsWith(".DE") ||
+    upperSymbol.endsWith(".PA") ||
+    upperSymbol.endsWith(".MI") ||
+    upperSymbol.endsWith(".MC") ||
+    upperSymbol.endsWith(".AS") ||
+    upperSymbol.endsWith(".BR") ||
+    upperSymbol.endsWith(".LS") ||
+    upperSymbol.endsWith(".AT") ||
+    upperSymbol.endsWith(".HE") ||
+    upperSymbol.endsWith(".OL")
+  ) {
+    return "€";
+  }
+  if (upperSymbol.endsWith(".T") || upperSymbol.endsWith(".SS") || upperSymbol.endsWith(".SZ") || upperSymbol.endsWith(".CN")) {
+    return "¥";
+  }
+  if (upperSymbol.endsWith(".KS") || upperSymbol.endsWith(".KQ")) {
+    return "₩";
+  }
+  if (upperSymbol.endsWith(".AX")) {
+    return "A$";
+  }
+  if (upperSymbol.endsWith(".TO") || upperSymbol.endsWith(".V")) {
+    return "C$";
+  }
+  if (upperSymbol.endsWith(".HK")) {
+    return "HK$";
+  }
+  if (upperSymbol.endsWith(".SG")) {
+    return "S$";
+  }
+  if (upperSymbol.endsWith(".NZ")) {
+    return "NZ$";
+  }
+  if (upperSymbol.endsWith(".SA")) {
+    return "R$";
+  }
+  if (upperSymbol.endsWith(".TW") || upperSymbol.endsWith(".TWO")) {
+    return "NT$";
+  }
+  return "$";
+}
+
 function StockData({ width = 1200, ratio = 1 }) {
   const location = useLocation();
   const initialSymbol = location.state?.symbol || "GOOGL";
@@ -179,7 +232,7 @@ function StockData({ width = 1200, ratio = 1 }) {
         const trimmedSymbol = symbol.trim();
         // Determine market (US/IN) based on symbol
         let stockMarket = 'US';
-        if (symbol.toUpperCase().endsWith('.NS') || symbol.toUpperCase() === 'SBIN') {
+        if (symbol.toUpperCase().endsWith('.NS') || symbol.toUpperCase().endsWith('.BO') || symbol.toUpperCase() === 'SBIN') {
           stockMarket = 'IN';
         }
         const res = await axios.post(`${backendUrl}/stock/fetch`, {
@@ -237,7 +290,7 @@ function StockData({ width = 1200, ratio = 1 }) {
       const trimmedSymbol = symbol.trim();
       // Determine market (US/IN) based on symbol
       let stockMarket = 'US';
-      if (symbol.toUpperCase().endsWith('.NS') || symbol.toUpperCase() === 'SBIN') {
+      if (symbol.toUpperCase().endsWith('.NS') || symbol.toUpperCase().endsWith('.BO') || symbol.toUpperCase() === 'SBIN') {
         stockMarket = 'IN';
       }
       const res = await axios.get(`${backendUrl}/stock/predict/${trimmedSymbol}`, {
@@ -454,13 +507,13 @@ function StockData({ width = 1200, ratio = 1 }) {
                 {statistics?.price_stats && (
                   <div className="flex items-center space-x-4 text-lg">
                     <span className="text-2xl font-bold text-white">
-                      ${statistics.price_stats.current.toFixed(2)}
+                      {getCurrencySymbol(symbol)}{statistics.price_stats.current.toFixed(2)}
                     </span>
                     <span className={`font-semibold ${
                       statistics.price_stats.change >= 0 ? 'text-green-400' : 'text-red-400'
                     }`}>
-                      {statistics.price_stats.change >= 0 ? '+' : ''}
-                      ${statistics.price_stats.change} ({statistics.price_stats.change_percent}%)
+                      {statistics.price_stats.change >= 0 ? '+' : '-'}
+                      {getCurrencySymbol(symbol)}{Math.abs(statistics.price_stats.change).toFixed(2)} ({statistics.price_stats.change_percent}%)
                     </span>
                   </div>
                 )}
@@ -479,19 +532,19 @@ function StockData({ width = 1200, ratio = 1 }) {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
               <div className="bg-gradient-to-br from-blue-600/20 to-blue-800/20 backdrop-blur-lg rounded-xl p-4 border border-blue-500/30">
                 <p className="text-blue-300 text-sm font-medium">Current</p>
-                <p className="text-white text-xl font-bold">${statistics.price_stats?.current.toFixed(2)}</p>
+                <p className="text-white text-xl font-bold">{getCurrencySymbol(symbol)}{statistics.price_stats?.current.toFixed(2)}</p>
               </div>
               <div className="bg-gradient-to-br from-green-600/20 to-green-800/20 backdrop-blur-lg rounded-xl p-4 border border-green-500/30">
                 <p className="text-green-300 text-sm font-medium">High</p>
-                <p className="text-white text-xl font-bold">${statistics.price_stats?.highest.toFixed(2)}</p>
+                <p className="text-white text-xl font-bold">{getCurrencySymbol(symbol)}{statistics.price_stats?.highest.toFixed(2)}</p>
               </div>
               <div className="bg-gradient-to-br from-red-600/20 to-red-800/20 backdrop-blur-lg rounded-xl p-4 border border-red-500/30">
                 <p className="text-red-300 text-sm font-medium">Low</p>
-                <p className="text-white text-xl font-bold">${statistics.price_stats?.lowest.toFixed(2)}</p>
+                <p className="text-white text-xl font-bold">{getCurrencySymbol(symbol)}{statistics.price_stats?.lowest.toFixed(2)}</p>
               </div>
               <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-lg rounded-xl p-4 border border-purple-500/30">
                 <p className="text-purple-300 text-sm font-medium">Average</p>
-                <p className="text-white text-xl font-bold">${statistics.price_stats?.average}</p>
+                <p className="text-white text-xl font-bold">{getCurrencySymbol(symbol)}{statistics.price_stats?.average}</p>
               </div>
               
               <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-800/20 backdrop-blur-lg rounded-xl p-4 border border-yellow-500/30">
@@ -532,11 +585,11 @@ function StockData({ width = 1200, ratio = 1 }) {
                   <>
                     <div className="text-center">
                       <p className="text-yellow-200 text-sm font-medium">Next Day Forecast</p>
-                      <p className="text-white text-2xl font-bold">${prediction.predicted_close}</p>
+                      <p className="text-white text-2xl font-bold">{getCurrencySymbol(symbol)}{prediction.predicted_close}</p>
                     </div>
                     <div className="text-center">
                       <p className="text-yellow-200 text-sm font-medium">Target Forecast ({PREDICT_OPTIONS.find(opt => opt.value === predictHorizon)?.label})</p>
-                      <p className="text-white text-2xl font-bold">${prediction.final_predicted_close || prediction.predicted_close}</p>
+                      <p className="text-white text-2xl font-bold">{getCurrencySymbol(symbol)}{prediction.final_predicted_close || prediction.predicted_close}</p>
                     </div>
                     <div className="text-center">
                       <p className="text-yellow-200 text-sm font-medium">Expected Change</p>
@@ -603,7 +656,7 @@ function StockData({ width = 1200, ratio = 1 }) {
                         tickStroke="#9CA3AF"
                         fontSize={11}
                         fontFamily="ui-sans-serif, system-ui, sans-serif" 
-                        tickFormat={(d) => `$${d.toFixed(2)}`}
+                        tickFormat={(d) => `${getCurrencySymbol(symbol)}${d.toFixed(2)}`}
                       />
 
                       {/* MouseCoordinateX and MouseCoordinateY provide the hover functionality */}
@@ -616,7 +669,7 @@ function StockData({ width = 1200, ratio = 1 }) {
                       />
 
                       <MouseCoordinateY 
-                        displayFormat={(v) => `$${v.toFixed(2)}`} // Shows price value on Y-axis hover
+                        displayFormat={(v) => `${getCurrencySymbol(symbol)}${v.toFixed(2)}`} // Shows price value on Y-axis hover
                         fill="#374151" // Background color of the coordinate display
                         stroke="#6B7280" // Border color
                         textFill="#E5E7EB" // Text color
@@ -687,10 +740,10 @@ function StockData({ width = 1200, ratio = 1 }) {
                                 {formatDate(data.date)}
                                 {data.predicted && ' (Predicted)'}
                               </div>
-                              <div>Open: ${data.open?.toFixed(2)}</div>
-                              <div>High: ${data.high?.toFixed(2)}</div>
-                              <div>Low: ${data.low?.toFixed(2)}</div>
-                              <div>Close: ${data.close?.toFixed(2)}</div>
+                              <div>Open: {getCurrencySymbol(symbol)}{data.open?.toFixed(2)}</div>
+                              <div>High: {getCurrencySymbol(symbol)}{data.high?.toFixed(2)}</div>
+                              <div>Low: {getCurrencySymbol(symbol)}{data.low?.toFixed(2)}</div>
+                              <div>Close: {getCurrencySymbol(symbol)}{data.close?.toFixed(2)}</div>
                               {!data.predicted && <div>Volume: {data.volume?.toLocaleString()}</div>}
                             </div>
                           );
@@ -725,12 +778,12 @@ function StockData({ width = 1200, ratio = 1 }) {
                         domain={[yAxisMin, yAxisMax]}
                         tick={{ fill: "#9CA3AF", fontSize: 11 }}
                         stroke="#6B7280"
-                        tickFormatter={(value) => `$${value.toFixed(2)}`}
+                        tickFormatter={(value) => `${getCurrencySymbol(symbol)}${value.toFixed(2)}`}
                       />
                       <Tooltip
                         labelFormatter={(value) => formatDate(value)}
                         formatter={(value, name) => [
-                          value ? `$${parseFloat(value).toFixed(2)}` : 'N/A',
+                          value ? `${getCurrencySymbol(symbol)}${parseFloat(value).toFixed(2)}` : 'N/A',
                           name === "close" ? "Close Price" : name
                         ]}
                         contentStyle={{
